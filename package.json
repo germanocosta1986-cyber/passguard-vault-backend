@@ -7,8 +7,9 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "postinstall": "prisma generate",
-    "build": "rimraf dist && prisma generate --no-engine && tsc",
-    "start": "node dist/server.js"
+    "build": "prisma generate && tsc",
+    "start": "node dist/server.js",
+    "vercel-build": "prisma generate && tsc"
   },
   "keywords": [],
   "author": "",
