@@ -7,3 +7,5 @@ node_modules
 /prisma/src/generated/prisma
 
 /src/generated/prisma
+
+.vercel
