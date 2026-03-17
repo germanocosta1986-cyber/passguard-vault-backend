@@ -1,6 +1,6 @@
 // /backend/src/controllers/authController.ts
 import { Request, Response } from "express";
-import { prisma } from "../lib/prisma/prisma"; // Aquela instância que criamos
+import { prisma } from "../lib/prisma"; // Aquela instância que criamos
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import "dotenv/config";
@@ -65,7 +65,7 @@ export const login = async (req: Request, res: Response) => {
           cancelAtPeriodEnd: user.subscription?.cancelAtPeriodEnd || false,
         },
 
-        invoices: user.invoices.map((inv) => ({
+        invoices: user.invoices.map((inv: any) => ({
           id: inv.id,
           date: new Date(inv.date).getTime(),
           amount: inv.amount,
@@ -567,7 +567,7 @@ export const getProfile = async (req: Request, res: Response) => {
           ? new Date(user.subscription.expiryDate).getTime()
           : null,
         cancelAtPeriodEnd: user.subscription?.cancelAtPeriodEnd || false,
-        invoices: user.invoices.map((inv) => ({
+        invoices: user.invoices.map((inv: any) => ({
           id: inv.id,
           date: new Date(inv.date).getTime(),
           amount: inv.amount,
