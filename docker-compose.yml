@@ -1,0 +1,14 @@
+services:
+  postgres:
+    container_name: passguard-db
+    image: bitnami/postgresql:latest
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: passguard@vault
+      POSTGRES_DB: passguardaapi
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/bitnami/postgressql/
+volumes:
+  postgres_data:
