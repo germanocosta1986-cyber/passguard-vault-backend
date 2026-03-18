@@ -6,9 +6,9 @@
   "main": "index.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "prisma generate && tsc",
-    "vercel-build": "prisma generate && tsc",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "build": "rimraf dist && prisma generate --no-engine && tsc",
+    "start": "node dist/server.js"
   },
   "keywords": [],
   "author": "",
