@@ -1,18 +1,13 @@
 {
   "version": 2,
-  "builds": [
+  "rewrites": [
     {
-      "src": "dist/server.js",
-      "use": "@vercel/node",
-      "config": {
-        "includeFiles": ["prisma/schema.prisma", "prisma/**"]
-      }
-    }
-  ],
-  "routes": [
+      "source": "/api/app-stripe-webhook",
+      "destination": "src/server.ts"
+    },
     {
-      "src": "/(.*)",
-      "dest": "dist/server.js"
+      "source": "/(.*)",
+      "destination": "src/server.ts"
     }
   ]
 }
