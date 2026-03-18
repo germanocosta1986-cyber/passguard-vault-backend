@@ -19,7 +19,7 @@ import {
   updateRecovery,
   verifyMasterPassword,
   webhookStripe,
-} from "./controllers/authController";
+} from "../src/controllers/authController";
 import { authMiddleware } from "./middlewares/authMiddleware";
 
 const app = express();
