@@ -1,8 +1,7 @@
 {
   "version": 2,
   "rewrites": [
-    { "source": "/api/app-stripe-webhook", "destination": "src/server.ts" },
-    { "source": "/(.*)", "destination": "src/server.ts" },
+    { "source": "/api/(.*)", "destination": "src/server.ts" },
     {
       "source": "/(.*)",
       "destination": "src/server.ts"
