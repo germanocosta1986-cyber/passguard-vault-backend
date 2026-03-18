@@ -9,8 +9,9 @@
     "sourceMap": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "*": ["node_modules/*"]
     }
   },
   "include": ["src/**/*.ts"],
