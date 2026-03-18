@@ -1,0 +1,101 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider  = "prisma-client-js"
+  output    = "../src/lib/prisma/generated/prisma"
+  directUrl = env("DIRECT_URL")
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id             String @id @default(uuid())
+  name           String
+  email          String @unique
+  masterPassword String // Hash da senha mestra
+  birthYear      Int
+
+  recoveryQuestion String? // A pergunta que o usuário escolheu
+  recoveryHash     String? // Hash da (Resposta + birthYear)
+
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  isPremium    Boolean       @default(false) // 👈 Começa sempre como Free
+  // Relacionamentos
+  passwords    Password[]
+  subscription Subscription?
+  sessions     Session[]
+  invoices     Invoice[]
+  activityLogs ActivityLog[]
+}
+
+model Password {
+  id            String   @id @default(uuid())
+  title         String // Ex: "Netflix", "Gmail"
+  username      String? // Usuário/E-mail do serviço
+  encryptedPass String // A senha criptografada (AES ou similar)
+  category      String?  @default("Geral")
+  icon          String   @default("key") // Campo que faltava
+  strength      String   @default("medium") // Campo que faltava
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relacionamento com Usuário
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Subscription {
+  id           String  @id @default(uuid())
+  planType     String  @default("FREE") // "FREE", "PRO"
+  billingCycle String? // "mensal", "anual" 👈 NOVO
+  isPremium    Boolean @default(false)
+
+  //CAMPOS  ESSENCIAIS PARA TRIAL E CICLO
+  status      String    @default("none")
+  trialEndsAt DateTime?
+
+  expiryDate           DateTime?
+  cancelAtPeriodEnd    Boolean   @default(false) // 👈 NOVO (Para reativação)
+  stripeSubscriptionId String?   @unique
+  stripeCustomerId     String?   @unique
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  expiresAt DateTime
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Invoice {
+  id         String   @id @default(uuid())
+  amount     String // Ex: "R$ 99,90"
+  date       DateTime @default(now())
+  expiryDate DateTime // Até quando essa fatura deu acesso
+  planType   String // "mensal" ou "anual"
+  status     String   @default("Paga") // "Paga", "Cancelada"
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ActivityLog {
+  id        String   @id @default(uuid())
+  action    String // "CREATE", "VIEW", "UPDATE", "DELETE"
+  details   String // "Visualizou a senha do Facebook"
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
