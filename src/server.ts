@@ -19,8 +19,8 @@ import {
   updateRecovery,
   verifyMasterPassword,
   webhookStripe,
-} from "../src/controllers/authController";
-import { authMiddleware } from "./middlewares/authMiddleware";
+} from "./controllers/authController.js";
+import { authMiddleware } from "./middlewares/authMiddleware.js";
 
 const app = express();
 
