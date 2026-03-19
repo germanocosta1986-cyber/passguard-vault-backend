@@ -171,7 +171,7 @@ export const updateRecovery = async (req: Request, res: Response) => {
 //buscar usuário para alterar senha
 export const getRecoveryQuestion = async (req: Request, res: Response) => {
   const { email } = req.body;
-
+  console.log("DADOS BRUTOS:", req.body);
   try {
     const user = await prisma.user.findUnique({
       where: { email },
