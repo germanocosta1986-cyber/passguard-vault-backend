@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
 // 1. Removido o .js e corrigido o caminho relativo
@@ -19,8 +20,8 @@ import {
   updateRecovery,
   verifyMasterPassword,
   webhookStripe,
-} from "./controllers/authController.js";
-import { authMiddleware } from "./middlewares/authMiddleware.js";
+} from "./controllers/authController";
+import { authMiddleware } from "./middlewares/authMiddleware";
 
 const app = express();
 
@@ -59,20 +60,12 @@ app.post("/api/billing/portal", authMiddleware, createPortalSession);
 
 // 2. IMPORTANTE: Envolva o listen em um condicional
 // Isso evita que a Vercel tente abrir portas desnecessárias
-const PORT = process.env.PORT || 3001;
-/* if (process.env.NODE_ENV !== "production") {
+if (process.env.NODE_ENV !== "production") {
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
     console.log(`🚀 Servidor rodando localmente na porta ${PORT}`);
   });
-} */
-
-// Este bloco garante que o servidor só "ligue" se você rodar o arquivo diretamente
-// A Vercel ignora isso, mas seu PC vai usar!
-
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando em http://192.168.0.26:${PORT}`);
-});
+}
 
 // 3. ESSENCIAL PARA VERCEL:
 export default app;
