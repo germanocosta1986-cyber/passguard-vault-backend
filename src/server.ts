@@ -7,6 +7,7 @@ import {
   createCheckoutSession,
   createPassword,
   createPortalSession,
+  debuguser,
   deleteAccount,
   deletePassword,
   getProfile,
@@ -41,6 +42,7 @@ app.get("/heath", (req, res) => res.send("Backend PassGuard Online! ✅"));
 app.get("/api", (req, res) => res.send("Backend PassGuard Rodando! 🚀"));
 
 // Suas rotas de API (Mantenha como estão)
+app.get("/api/debug-users", debuguser);
 app.post("/api/login", login);
 app.post("/api/signup", signUp);
 app.patch("/api/update-recovery", updateRecovery);
@@ -60,6 +62,7 @@ app.post("/api/billing/portal", authMiddleware, createPortalSession);
 
 // 2. IMPORTANTE: Envolva o listen em um condicional
 // Isso evita que a Vercel tente abrir portas desnecessárias
+
 if (process.env.NODE_ENV !== "production") {
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {

@@ -15,6 +15,40 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
 
 const JWT_SECRET = process.env.JWT_SECRET || "sua_chave_secreta_ultra_segura";
 
+export const debuguser = async (req: Request, res: Response) => {
+  try {
+    const users = await prisma.user.findMany();
+
+    if (users.length === 0) {
+      return res.status(404).send("Nenhum usuário encontrado.");
+    }
+
+    // 1. Criar o cabeçalho do CSV
+    const header = "id,name,email,createdAt\n";
+
+    // 2. Mapear os dados para linhas (tratando possíveis vírgulas no nome)
+    const rows = users
+      .map(
+        (user) => `${user.id},"${user.name}","${user.email}",${user.createdAt}`,
+      )
+      .join("\n");
+
+    const csvContent = header + rows;
+
+    // 3. Configurar os Headers para Forçar o Download
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=usuarios_passguard.csv",
+    );
+
+    return res.status(200).send(csvContent);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Erro ao gerar o arquivo.");
+  }
+};
+
 /* login */
 export const login = async (req: Request, res: Response) => {
   try {
@@ -518,8 +552,8 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
       subscription_data: {
         trial_period_days: 7, // 👈 Seus 7 dias de teste grátis aqui!
       },
-      success_url: `passguard-vault://checkout?status=success`,
-      cancel_url: `passguard-vault://checkout?status=cancel`,
+      success_url: `https://passguard-backend-jet.vercel.app/api/stripe/success-redirect`,
+      cancel_url: `https://passguard-backend-jet.vercel.app/api/stripe/checkout?status=cancel`,
       metadata: {
         userId: userId,
         planType: planType,
@@ -743,7 +777,7 @@ export const createPortalSession = async (req: Request, res: Response) => {
     // 3. Cria a sessão do portal (Aqui o Stripe gera o link de cancelamento/gestão)
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId,
-      return_url: "passguard-vault://dashboardScreen", // Deep link para voltar ao seu app
+      return_url: "https://passguard-backend-jet.vercel.app/dashboardScreen", // Deep link para voltar ao seu app
     });
 
     console.log("Portal Session criada com sucesso:", session.url);
