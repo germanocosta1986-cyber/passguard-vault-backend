@@ -450,34 +450,44 @@ export const webhookStripe = async (req: any, res: any) => {
     const invoice = event.data.object as Stripe.Invoice;
     const customerId = invoice.customer as string;
 
-    // Buscamos a assinatura vinculada a este Customer do Stripe
+    // 1. Buscamos a assinatura
     const sub = await prisma.subscription.findUnique({
       where: { stripeCustomerId: customerId },
     });
 
     if (sub) {
-      await prisma.subscription.update({
-        where: { id: sub.id },
-        data: {
-          status: "active",
-          isPremium: true,
-        },
-      });
+      // 2. Extraímos a data real do Stripe (27 de Abril)
+      const periodEnd = invoice.lines.data[0].period.end;
+      const expiryDate = new Date(periodEnd * 1000);
 
-      // Aproveitamos para criar o registro na sua tabela de Invoice (Fatura)
-      // para o histórico que você mostra no App
+      // 3. Criamos a fatura (Sem o ID único, usamos apenas create)
       await prisma.invoice.create({
         data: {
+          userId: sub.userId,
           amount: (invoice.amount_paid / 100).toLocaleString("pt-BR", {
             style: "currency",
             currency: "BRL",
           }),
           date: new Date(),
-          expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Exemplo: +30 dias
+          expiryDate: expiryDate, // Aqui garante o "27 de Abril" no App
           planType: sub.billingCycle || "mensal",
           status: "Paga",
-          userId: sub.userId,
         },
+      });
+
+      // 4. Sincronizamos o status do Usuário e da Subscription
+      await prisma.subscription.update({
+        where: { id: sub.id },
+        data: {
+          status: "active",
+          isPremium: true,
+          trialEndsAt: null,
+        },
+      });
+
+      await prisma.user.update({
+        where: { id: sub.userId },
+        data: { isPremium: true },
       });
     }
   }
@@ -777,7 +787,7 @@ export const createPortalSession = async (req: Request, res: Response) => {
     // 3. Cria a sessão do portal (Aqui o Stripe gera o link de cancelamento/gestão)
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId,
-      return_url: "passguard-vault://dashboardScreen", // Deep link para voltar ao seu app
+      return_url: "passguard-vault://cancelTransition", // Deep link para voltar ao seu app
     });
 
     console.log("Portal Session criada com sucesso:", session.url);
@@ -789,3 +799,70 @@ export const createPortalSession = async (req: Request, res: Response) => {
       .json({ error: "Erro interno ao gerar portal de faturamento." });
   }
 };
+
+//rota para baixar pdf senhas
+import PDFDocument from "pdfkit";
+import { PassThrough } from "stream";
+
+export default async function handler(req: Request, res: Response) {
+  if (req.method !== "POST") return res.status(405).send("Method Not Allowed");
+
+  const { passwords, userSelectedPassword } = req.body;
+
+  // 1. Criar o documento com CRIPTOGRAFIA
+  const doc = new PDFDocument({
+    userPassword: userSelectedPassword, // A SENHA QUE O USUÁRIO DEFINIU
+    ownerPassword: "SILVADEV_MASTER_KEY",
+    permissions: { printing: "highResolution" },
+    margin: 50,
+  });
+
+  // Configura o header para download de PDF
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader(
+    "Content-Disposition",
+    "attachment; filename=backup_protegido.pdf",
+  );
+
+  // Envia o PDF via Stream para ser mais rápido
+  doc.pipe(res);
+
+  // 2. Desenhar o PDF (Estilo SilvaDev)
+  doc
+    .fillColor("#137fec")
+    .fontSize(25)
+    .text("PassGuard Vault", { align: "center" });
+  doc
+    .fontSize(10)
+    .fillColor("#64748b")
+    .text("SilvaDev LTDA - Relatório PRO", { align: "center" });
+  doc.moveDown();
+
+  doc.rect(50, doc.y, 500, 40).fill("#fff7ed").stroke("#ffedd5");
+  doc
+    .fillColor("#9a3412")
+    .fontSize(10)
+    .text(
+      "AVISO: Documento criptografado. Não compartilhe sua senha.",
+      60,
+      doc.y + 15,
+    );
+  doc.moveDown(2);
+
+  // Tabela Simples
+  passwords.forEach((p: any) => {
+    doc
+      .fillColor("#10263b")
+      .fontSize(12)
+      .text(`Serviço: ${p.title}`, { continued: true });
+    doc
+      .fillColor("#137fec")
+      .text(`  |  Senha: ${p.password || p.encryptedPass}`); // Já deve vir descriptografado do app
+    doc.fillColor("#94a3b8").fontSize(10).text(`Usuário: ${p.username}`);
+    doc.moveDown(0.5);
+    doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke("#e2e8f0");
+    doc.moveDown(0.5);
+  });
+
+  doc.end();
+}

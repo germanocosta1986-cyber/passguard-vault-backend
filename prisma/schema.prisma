@@ -85,7 +85,7 @@ model Invoice {
   expiryDate  DateTime // Até quando essa fatura deu acesso
   planType    String   // "mensal" ou "anual"
   status      String   @default("Paga") // "Paga", "Cancelada"
-  
+  stripeInvoiceId String? @unique
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
