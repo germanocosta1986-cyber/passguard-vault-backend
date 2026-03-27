@@ -403,44 +403,40 @@ export const webhookStripe = async (req: any, res: any) => {
   }
 
   // 1. O usuário finalizou o checkout com sucesso (Início do Trial)
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object as Stripe.Checkout.Session;
-    const subscriptionId = session.subscription as string;
-    const customerId = session.customer as string;
-    const userId = session.metadata?.userId;
-    const planType = session.metadata?.planType;
+  if (event.type === "invoice.payment_succeeded") {
+    const invoice = event.data.object as Stripe.Invoice;
+    const customerId = invoice.customer as string;
 
-    if (userId) {
-      // Buscamos os detalhes da assinatura para saber quando o trial acaba
-      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    const sub = await prisma.subscription.findUnique({
+      where: { stripeCustomerId: customerId },
+    });
 
-      await prisma.subscription.upsert({
-        where: { userId },
-        create: {
-          userId,
-          stripeSubscriptionId: subscriptionId,
-          stripeCustomerId: customerId,
-          planType: "PRO",
-          status: "trialing", // Define como em teste
-          isPremium: true, // Já libera o acesso
-          billingCycle: planType,
-          trialEndsAt: new Date(subscription.trial_end! * 1000), // Converte timestamp do Stripe
-        },
-        update: {
-          stripeSubscriptionId: subscriptionId,
-          stripeCustomerId: customerId,
-          planType: "PRO",
-          status: "trialing",
-          isPremium: true,
-          billingCycle: planType,
-          trialEndsAt: new Date(subscription.trial_end! * 1000),
+    if (sub) {
+      // 1777249617 no seu JSON vira 27 de Abril de 2026
+      const periodEnd = invoice.lines.data[0].period.end;
+      const expiryDate = new Date(periodEnd * 1000);
+
+      // Cria a fatura com a data real do próximo vencimento
+      await prisma.invoice.create({
+        data: {
+          userId: sub.userId,
+          amount: "R$ 12,90",
+          date: new Date(), // Data de hoje (pagamento)
+          expiryDate: expiryDate, // Data que aparecerá no App (vencimento)
+          planType: sub.billingCycle || "PRO",
+          status: "Paga",
         },
       });
 
-      // Atualiza o campo rápido no User
-      await prisma.user.update({
-        where: { id: userId },
-        data: { isPremium: true },
+      // Atualiza a assinatura para 'active' e define a expiração
+      await prisma.subscription.update({
+        where: { id: sub.id },
+        data: {
+          status: "active",
+          isPremium: true,
+          expiryDate: expiryDate,
+          trialEndsAt: null,
+        },
       });
     }
   }
@@ -448,39 +444,29 @@ export const webhookStripe = async (req: any, res: any) => {
   // 2. O Trial acabou e a primeira cobrança foi feita (ou renovação mensal)
   if (event.type === "invoice.payment_succeeded") {
     const invoice = event.data.object as Stripe.Invoice;
+
+    console.log("dados fatura, ", invoice);
+    // 1. Pegamos o ID do cliente que está no seu JSON
     const customerId = invoice.customer as string;
 
-    // 1. Buscamos a assinatura
+    // 2. Buscamos a assinatura no seu Prisma
     const sub = await prisma.subscription.findUnique({
       where: { stripeCustomerId: customerId },
     });
 
     if (sub) {
-      // 2. Extraímos a data real do Stripe (27 de Abril)
+      // 3. Pegamos a data de término do período (o "end" do seu JSON)
+      // No seu log: invoice.lines.data[0].period.end = 1777249617
       const periodEnd = invoice.lines.data[0].period.end;
       const expiryDate = new Date(periodEnd * 1000);
 
-      // 3. Criamos a fatura (Sem o ID único, usamos apenas create)
-      await prisma.invoice.create({
-        data: {
-          userId: sub.userId,
-          amount: (invoice.amount_paid / 100).toLocaleString("pt-BR", {
-            style: "currency",
-            currency: "BRL",
-          }),
-          date: new Date(),
-          expiryDate: expiryDate, // Aqui garante o "27 de Abril" no App
-          planType: sub.billingCycle || "mensal",
-          status: "Paga",
-        },
-      });
-
-      // 4. Sincronizamos o status do Usuário e da Subscription
+      // 4. Atualizamos a assinatura e o usuário
       await prisma.subscription.update({
         where: { id: sub.id },
         data: {
           status: "active",
           isPremium: true,
+          expiryDate: expiryDate, // Salva a data real do Stripe
           trialEndsAt: null,
         },
       });
@@ -489,6 +475,25 @@ export const webhookStripe = async (req: any, res: any) => {
         where: { id: sub.userId },
         data: { isPremium: true },
       });
+
+      // 5. Criamos a fatura para aparecer no Histórico do App
+      await prisma.invoice.create({
+        data: {
+          userId: sub.userId,
+          amount: (invoice.amount_paid / 100).toLocaleString("pt-BR", {
+            style: "currency",
+            currency: "BRL",
+          }),
+          date: new Date(),
+          expiryDate: expiryDate, // Esta data aparecerá no seu BillingScreen
+          planType: sub.billingCycle || "mensal",
+          status: "Paga",
+        },
+      });
+
+      console.log(`✅ Fatura processada para o usuário ${sub.userId}`);
+    } else {
+      console.log(`⚠️ Customer ${customerId} não encontrado no banco.`);
     }
   }
 
