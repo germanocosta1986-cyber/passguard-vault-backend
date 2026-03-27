@@ -585,69 +585,41 @@ export const getProfile = async (req: Request, res: Response) => {
   try {
     const userId = req.userId;
 
+    // 1. Defesa: Se o userId não existir, não deixa o Prisma rodar
+    if (!userId) {
+      console.error("❌ Erro: userId não encontrado na requisição");
+      return res.status(401).json({ error: "Não autorizado." });
+    }
+
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
         subscription: true,
         invoices: {
           orderBy: { date: "desc" },
-          take: 15, // Aumentei um pouco para garantir um histórico melhor
         },
       },
     });
 
     if (!user) {
-      return res.status(404).json({ error: "Usuário não encontrado." });
+      return res
+        .status(404)
+        .json({ error: "Usuário não encontrado no banco." });
     }
 
-    // Calculamos a data de expiração real
-    // Se não tiver subscription, usamos null.
-    // Se tiver, priorizamos o expiryDate da assinatura.
-    const expiryDate = user.subscription?.expiryDate
-      ? new Date(user.subscription.expiryDate).getTime()
-      : null;
-
+    // 2. Retorno seguro dos dados
     res.json({
       user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        birthYear: user.birthYear,
-        masterPassword: user.masterPassword,
-        createdAt: user.createdAt,
-
-        // --- DADOS DE SEGURANÇA (Para o Splash carregar) ---
-        recoveryQuestion: user.recoveryQuestion || null,
-
-        // --- DADOS DE PAGAMENTO ---
-        isPremium: user.isPremium,
-        planType: user.subscription?.billingCycle || "FREE",
-        premiumExpiryDate: expiryDate,
-        cancelAtPeriodEnd: user.subscription?.cancelAtPeriodEnd || false,
-
-        // Enviamos o trialEndsAt para o App saber se ainda está no teste
-        subscription: {
-          status: user.subscription?.status,
-          trialEndsAt: user.subscription?.trialEndsAt
-            ? new Date(user.subscription.trialEndsAt).getTime()
-            : null,
-        },
-
-        // --- HISTÓRICO DE FATURAS ---
-        invoices: user.invoices.map((inv: any) => ({
-          id: inv.id,
-          date: new Date(inv.date).getTime(), // Convertendo para Timestamp para o JS do App
-          amount: inv.amount,
-          status: inv.status,
-          expiryDate: inv.expiryDate
-            ? new Date(inv.expiryDate).getTime()
-            : null,
-        })),
+        ...user,
+        // Garante que o App receba um array vazio em vez de quebrar se não houver faturas
+        invoices: user.invoices || [],
+        premiumExpiryDate: user.subscription?.expiryDate || null,
       },
     });
-  } catch (error) {
-    console.error("Erro getProfile:", error);
-    return res.status(500).json({ error: "Erro ao buscar perfil." });
+  } catch (error: any) {
+    // Isso vai fazer o erro aparecer detalhado no log da Vercel
+    console.error("❌ Erro detalhado no getProfile:", error.message);
+    return res.status(500).json({ error: "Erro interno ao buscar perfil." });
   }
 };
 
