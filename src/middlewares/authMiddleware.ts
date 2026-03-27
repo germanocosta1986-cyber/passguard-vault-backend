@@ -41,22 +41,24 @@ export const authMiddleware = (
 
   // 4. Validação Real do JWT
   jwt.verify(token, JWT_SECRET, (err, decoded) => {
-    // ... erro check ...
-    const payload = decoded as any;
-
-    console.log("-----------------------------------------");
-    console.log("JWT DECODIFICADO:", payload); // VEJA O QUE APARECE AQUI NO LOG DA VERCEL
-
-    // Tente capturar das duas formas para garantir:
-    const idToUse = payload.userId || payload.id || payload.sub;
-
-    if (!idToUse) {
-      console.log("❌ NENHUM ID ENCONTRADO NO PAYLOAD");
-      return res.status(401).json({ error: "Token sem ID" });
+    if (err) {
+      console.log("❌ Erro JWT no Middleware:", err.message);
+      return res.status(401).json({ error: "Token inválido ou expirado" });
     }
 
-    req.userId = String(idToUse);
-    console.log("✅ userId injetado no req:", req.userId);
+    const payload = decoded as jwt.JwtPayload;
+
+    // --- CORREÇÃO CRÍTICA AQUI ---
+    // Você usou 'userId' no controller, então aqui deve ser 'userId'
+    if (!payload || !payload.userId) {
+      console.log("⚠️ Payload inválido decodificado:", payload);
+      return res
+        .status(401)
+        .json({ error: "Token não contém identificação do usuário" });
+    }
+
+    // Injeta o ID na requisição para os controllers usarem
+    req.userId = String(payload.userId);
 
     return next();
   });
