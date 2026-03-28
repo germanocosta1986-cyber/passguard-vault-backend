@@ -632,7 +632,6 @@ export const getProfile = async (req: Request, res: Response) => {
             ? new Date(user.subscription.trialEndsAt).getTime()
             : null,
         },
-
         // --- HISTÓRICO DE FATURAS ---
         invoices: user.invoices.map((inv: any) => ({
           id: inv.id,
