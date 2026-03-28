@@ -46,7 +46,7 @@ export const authMiddleware = (
       return res.status(401).json({ error: "Token inválido ou expirado" });
     }
 
-    const payload = decoded as jwt.JwtPayload;
+    const payload = decoded as any;
 
     // --- CORREÇÃO CRÍTICA AQUI ---
     // Você usou 'userId' no controller, então aqui deve ser 'userId'
