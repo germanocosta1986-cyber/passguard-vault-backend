@@ -70,7 +70,7 @@ export const login = async (req: Request, res: Response) => {
     }
 
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, {
-      expiresIn: "7d",
+      expiresIn: "1d",
     });
 
     res.json({
@@ -347,7 +347,7 @@ export const makePremium = async (req: Request, res: Response) => {
   try {
     const { userId, cycle } = req.body; // cycle: 'mensal' | 'anual'
 
-    const durationDays = cycle === "anual" ? 365 : 30;
+    const durationDays = cycle === "anual" ? 365 : 1;
     const expiryDate = new Date();
     expiryDate.setDate(expiryDate.getDate() + durationDays);
 
@@ -444,7 +444,7 @@ export const webhookStripe = async (req: any, res: any) => {
       const periodEnd = invoice.lines.data[0]?.period?.end;
       const expiryDate = periodEnd
         ? new Date(periodEnd * 1000)
-        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        : new Date(Date.now() + 1 * 24 * 60 * 60 * 1000);
 
       try {
         // Atualiza a Assinatura e o Usuário
@@ -564,7 +564,7 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
         },
       ],
       subscription_data: {
-        trial_period_days: 7, // 👈 Seus 7 dias de teste grátis aqui!
+        trial_period_days: 1, // 👈 Seus 7 dias de teste grátis aqui!
       },
       success_url: `passguard-vault://checkout?status=success`,
       cancel_url: `passguard-vault://checkout?status=cancel`,
