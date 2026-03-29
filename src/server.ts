@@ -39,7 +39,7 @@ app.use(express.json());
 
 // Rota de Teste
 app.get("/heath", (req, res) => res.send("Backend PassGuard Online! ✅"));
-app.get("/api", (req, res) => res.send("Backend PassGuard Rodando! 🚀"));
+app.get("/", (req, res) => res.send("Backend PassGuard Rodando! 🚀"));
 
 // Suas rotas de API (Mantenha como estão)
 app.get("/api/debug-users", debuguser);
