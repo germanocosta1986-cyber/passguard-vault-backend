@@ -566,8 +566,8 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
       subscription_data: {
         trial_period_days: 1, // 👈 Seus 7 dias de teste grátis aqui!
       },
-      success_url: `passguard-vault://checkout?status=success`,
-      cancel_url: `passguard-vault://checkout?status=cancel`,
+      success_url: `passguard://checkout?status=success`,
+      cancel_url: `passguard://checkout?status=cancel`,
       metadata: {
         userId: userId,
         planType: planType,
@@ -813,7 +813,7 @@ export const createPortalSession = async (req: Request, res: Response) => {
     // 3. Cria a sessão do portal (Aqui o Stripe gera o link de cancelamento/gestão)
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId,
-      return_url: "passguard-vault://cancelTransition", // Deep link para voltar ao seu app
+      return_url: "passguard://cancelTransition", // Deep link para voltar ao seu app
     });
 
     console.log("Portal Session criada com sucesso:", session.url);
