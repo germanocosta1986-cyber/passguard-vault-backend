@@ -403,6 +403,49 @@ export const webhookStripe = async (req: any, res: any) => {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object as Stripe.Checkout.Session;
+    const userId = session.metadata?.userId;
+    const customerId = session.customer as string;
+    const subscriptionId = session.subscription as string;
+
+    console.log(
+      `🚀 Checkout Finalizado! User: ${userId} | Customer: ${customerId}`,
+    );
+
+    if (userId) {
+      // 1. Vincula o Customer ID ao usuário e ativa o Premium imediatamente
+      await prisma.subscription.upsert({
+        where: { userId: userId },
+        update: {
+          stripeCustomerId: customerId,
+          stripeSubscriptionId: subscriptionId,
+          status: "trialing", // Como tem 1 dia de trial, o status inicial é este
+          isPremium: true,
+          // Define a expiração para daqui a 24h ou conforme o plano
+          expiryDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000),
+        },
+        create: {
+          userId: userId,
+          stripeCustomerId: customerId,
+          stripeSubscriptionId: subscriptionId,
+          status: "trialing",
+          isPremium: true,
+          expiryDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000),
+        },
+      });
+
+      await prisma.user.update({
+        where: { id: userId },
+        data: { isPremium: true },
+      });
+
+      console.log(
+        `✅ Acesso Premium liberado via Checkout para o User ${userId}`,
+      );
+    }
+  }
+
   // --- 1. SUCESSO NO PAGAMENTO (Trial finalizado ou Renovação) ---
   if (event.type === "invoice.payment_succeeded") {
     const invoice = event.data.object as Stripe.Invoice;
