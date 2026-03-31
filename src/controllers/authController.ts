@@ -510,14 +510,21 @@ export const webhookStripe = async (req: any, res: any) => {
         const createdInvoice = await prisma.invoice.create({
           data: {
             userId: sub.userId,
+
             amount: (invoice.amount_paid / 100).toLocaleString("pt-BR", {
               style: "currency",
               currency: "BRL",
             }),
+
             date: new Date(),
             expiryDate: expiryDate,
             planType: sub.billingCycle || "mensal",
             status: "Paga",
+
+            // ✅ ESSENCIAL PRA FRONT
+            stripeInvoiceId: invoice.id,
+            hostedInvoiceUrl: invoice.hosted_invoice_url,
+            invoicePdf: invoice.invoice_pdf,
           },
         });
 
@@ -678,12 +685,16 @@ export const getProfile = async (req: Request, res: Response) => {
         // --- HISTÓRICO DE FATURAS ---
         invoices: user.invoices.map((inv: any) => ({
           id: inv.id,
-          date: new Date(inv.date).getTime(), // Convertendo para Timestamp para o JS do App
+          date: new Date(inv.date).getTime(),
           amount: inv.amount,
           status: inv.status,
           expiryDate: inv.expiryDate
             ? new Date(inv.expiryDate).getTime()
             : null,
+
+          // 🔥 NOVO
+          hostedInvoiceUrl: inv.hostedInvoiceUrl,
+          invoicePdf: inv.invoicePdf,
         })),
       },
     });

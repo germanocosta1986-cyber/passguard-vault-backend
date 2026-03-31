@@ -20,7 +20,7 @@ model User {
   email          String   @unique
   masterPassword String   // Hash da senha mestra
   birthYear      Int
-
+  acceptedTerms     Boolean?  @default(false)
   recoveryQuestion String? // A pergunta que o usuário escolheu
   recoveryHash     String? // Hash da (Resposta + birthYear)
 
@@ -86,6 +86,10 @@ model Invoice {
   planType    String   // "mensal" ou "anual"
   status      String   @default("Paga") // "Paga", "Cancelada"
   stripeInvoiceId String? @unique
+
+  // 🔥 NOVOS CAMPOS
+  hostedInvoiceUrl  String?
+  invoicePdf        String?
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
