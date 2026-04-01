@@ -403,27 +403,27 @@ export const webhookStripe = async (req: any, res: any) => {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
+  // --- 1. SESSÃO FINALIZADA (O Ponto de Partida) ---
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
     const userId = session.metadata?.userId;
     const customerId = session.customer as string;
     const subscriptionId = session.subscription as string;
+    const planType = session.metadata?.planType || "mensal";
 
-    console.log(
-      `🚀 Checkout Finalizado! User: ${userId} | Customer: ${customerId}`,
-    );
+    console.log(`🚀 Checkout Finalizado! User: ${userId} | Plan: ${planType}`);
 
     if (userId) {
-      // 1. Vincula o Customer ID ao usuário e ativa o Premium imediatamente
       await prisma.subscription.upsert({
         where: { userId: userId },
         update: {
           stripeCustomerId: customerId,
           stripeSubscriptionId: subscriptionId,
-          status: "trialing", // Como tem 1 dia de trial, o status inicial é este
+          status: "trialing",
           isPremium: true,
-          // Define a expiração para daqui a 24h ou conforme o plano
-          expiryDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000),
+          billingCycle: planType, // Garante que não apareça "FREE" no app
+          expiryDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000), // 24h de Trial
+          trialEndsAt: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000),
         },
         create: {
           userId: userId,
@@ -431,7 +431,9 @@ export const webhookStripe = async (req: any, res: any) => {
           stripeSubscriptionId: subscriptionId,
           status: "trialing",
           isPremium: true,
+          billingCycle: planType,
           expiryDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000),
+          trialEndsAt: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000),
         },
       });
 
@@ -439,133 +441,98 @@ export const webhookStripe = async (req: any, res: any) => {
         where: { id: userId },
         data: { isPremium: true },
       });
-
-      console.log(
-        `✅ Acesso Premium liberado via Checkout para o User ${userId}`,
-      );
     }
   }
 
-  // --- 1. SUCESSO NO PAGAMENTO (Trial finalizado ou Renovação) ---
+  // --- 2. SUCESSO NO PAGAMENTO (A Lógica de Blindagem) ---
   if (event.type === "invoice.payment_succeeded") {
     const invoice = event.data.object as Stripe.Invoice;
     const customerId = invoice.customer as string;
-    const customerEmail = invoice.customer_email as string;
+    const amountPaid = invoice.amount_paid; // Valor em centavos (ex: 1290)
 
-    console.log("-----------------------------------------");
-    console.log("📩 Evento recebido:", event.type);
-    console.log(
-      `🔔 Evento: invoice.payment_succeeded | Customer: ${customerId}`,
-    );
+    // 🛡️ TRAVA: Se pagou R$ 0,00, é apenas a fatura de setup do Trial.
+    // Não transformamos em 'active' ainda para não matar o Trial no App.
+    const isInitialTrialInvoice = amountPaid === 0;
 
-    // Tenta encontrar a assinatura pelo Stripe Customer ID
     let sub = await prisma.subscription.findUnique({
       where: { stripeCustomerId: customerId },
     });
 
-    // PLANO B: Se não achou pelo ID, busca pelo email do usuário
-    if (!sub && customerEmail) {
-      console.log(
-        `🔍 ID não encontrado. Tentando vincular pelo email: ${customerEmail}`,
-      );
-      const userWithSub = await prisma.user.findUnique({
-        where: { email: customerEmail },
-        include: { subscription: true },
-      });
-
-      if (userWithSub?.subscription) {
-        sub = userWithSub.subscription;
-        // Atualiza o ID do cliente no banco para não falhar na próxima
-        await prisma.subscription.update({
-          where: { id: sub.id },
-          data: { stripeCustomerId: customerId },
-        });
-      }
-    }
-
     if (sub) {
-      // Extrai a data de expiração real do Stripe (ex: 27 de Abril)
       const periodEnd = invoice.lines.data[0]?.period?.end;
       const expiryDate = periodEnd
         ? new Date(periodEnd * 1000)
-        : new Date(Date.now() + 1 * 24 * 60 * 60 * 1000);
+        : sub.expiryDate;
 
-      try {
-        // Atualiza a Assinatura e o Usuário
-        await prisma.subscription.update({
-          where: { id: sub.id },
-          data: {
-            status: "active",
-            isPremium: true,
-            expiryDate: expiryDate,
-            trialEndsAt: null,
-          },
-        });
+      // Só atualizamos para 'active' e limpamos o trial se houve cobrança real (> 0)
+      await prisma.subscription.update({
+        where: { id: sub.id },
+        data: {
+          status: isInitialTrialInvoice ? "trialing" : "active",
+          isPremium: true,
+          expiryDate: expiryDate,
+          // Se pagou, o trial acabou. Se não, mantém o trialEndsAt original.
+          ...(isInitialTrialInvoice ? {} : { trialEndsAt: null }),
+        },
+      });
 
-        await prisma.user.update({
-          where: { id: sub.userId },
-          data: { isPremium: true },
-        });
-
-        // Cria a fatura para o histórico do App
-        const createdInvoice = await prisma.invoice.create({
+      // 📝 Registro de Fatura: Só salvamos no banco se o valor for maior que zero
+      // para não poluir o histórico do usuário com "R$ 0,00"
+      if (!isInitialTrialInvoice) {
+        await prisma.invoice.create({
           data: {
             userId: sub.userId,
-
-            amount: (invoice.amount_paid / 100).toLocaleString("pt-BR", {
+            amount: (amountPaid / 100).toLocaleString("pt-BR", {
               style: "currency",
               currency: "BRL",
             }),
-
             date: new Date(),
             expiryDate: expiryDate,
             planType: sub.billingCycle || "mensal",
             status: "Paga",
-
-            // ✅ ESSENCIAL PRA FRONT
             stripeInvoiceId: invoice.id,
             hostedInvoiceUrl: invoice.hosted_invoice_url,
             invoicePdf: invoice.invoice_pdf,
           },
         });
-
+        console.log(`✅ Pagamento real processado para User: ${sub.userId}`);
+      } else {
         console.log(
-          `✅ Sucesso: Fatura ${createdInvoice.id} gerada para o User ${sub.userId}`,
+          `ℹ️ Fatura de Trial (R$ 0,00) detectada. Mantendo status 'trialing'.`,
         );
-      } catch (dbError) {
-        console.error("❌ Erro ao atualizar banco de dados:", dbError);
       }
-    } else {
-      console.log(
-        `⚠️ Alerta: Nenhum usuário encontrado para o Customer ${customerId} ou Email ${customerEmail}`,
-      );
     }
   }
 
-  // --- 2. CANCELAMENTO OU FALHA ---
+  // --- 3. CANCELAMENTO OU EXPIRAÇÃO ---
   if (
     event.type === "customer.subscription.deleted" ||
     event.type === "invoice.payment_failed"
   ) {
     const subscription = event.data.object as Stripe.Subscription;
-    console.log(`🚫 Evento: ${event.type} | Sub: ${subscription.id}`);
 
     try {
-      const sub = await prisma.subscription.update({
+      const sub = await prisma.subscription.findFirst({
         where: { stripeSubscriptionId: subscription.id },
-        data: {
-          status: "canceled",
-          isPremium: false,
-        },
       });
 
-      await prisma.user.update({
-        where: { id: sub.userId },
-        data: { isPremium: false },
-      });
-      console.log(`📉 Acesso Premium removido para o User ${sub.userId}`);
+      if (sub) {
+        await prisma.subscription.update({
+          where: { id: sub.id },
+          data: {
+            status: "canceled",
+            isPremium: false,
+          },
+        });
+
+        await prisma.user.update({
+          where: { id: sub.userId },
+          data: { isPremium: false },
+        });
+        console.log(`📉 Premium removido: Subscription ${subscription.id}`);
+      }
     } catch (err) {
-      console.error("❌ Erro ao processar cancelamento:", err);
+      console.error("❌ Erro ao processar downgrade:", err);
     }
   }
 
