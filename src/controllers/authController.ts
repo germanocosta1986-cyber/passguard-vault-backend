@@ -8,7 +8,7 @@ import "dotenv/config";
 import Stripe from "stripe";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-  apiVersion: "2026-02-25.clover" as any,
+  apiVersion: "2023-10-16" as any,
 });
 /* const endpoint =
   "whsec_48e96b5a687cb686cf3964b4416aad40c03428183b99f65232028a3f28096e7e"; */
@@ -453,6 +453,7 @@ export const webhookStripe = async (req: any, res: any) => {
     const customerEmail = invoice.customer_email as string;
 
     console.log("-----------------------------------------");
+    console.log("📩 Evento recebido:", event.type);
     console.log(
       `🔔 Evento: invoice.payment_succeeded | Customer: ${customerId}`,
     );
@@ -574,54 +575,76 @@ export const webhookStripe = async (req: any, res: any) => {
 /* STRIPE CHECKOUT SESSION */
 export const createCheckoutSession = async (req: Request, res: Response) => {
   try {
-    const { userId, planType } = req.body; // 'mensal' ou 'anual'
+    const { userId, planType } = req.body;
 
-    // 1. Buscar o usuário para pegar o e-mail (Stripe precisa para criar o Customer)
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: { subscription: true },
     });
 
-    if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
+    if (!user) {
+      return res.status(404).json({ error: "Usuário não encontrado" });
+    }
 
-    // 2. Criar ou recuperar Customer no Stripe
+    // 🔥 1. Garantir Customer
     let customerId = user.subscription?.stripeCustomerId;
+
     if (!customerId) {
       const customer = await stripe.customers.create({
         email: user.email,
         name: user.name,
-        metadata: { userId: user.id },
+        metadata: {
+          userId: user.id, // ✔️ importante
+        },
       });
+
       customerId = customer.id;
+
+      // 👉 já salva aqui para garantir vínculo
+      await prisma.subscription.upsert({
+        where: { userId: user.id },
+        update: { stripeCustomerId: customerId },
+        create: {
+          userId: user.id,
+          stripeCustomerId: customerId,
+          status: "pending",
+        },
+      });
     }
 
-    // 3. Criar a sessão de ASSINATURA com TRIAL
+    // 🔥 2. Criar sessão corretamente
     const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      /* payment_method_options: {
-        pix: { expires_after_seconds: 600 },
-      }, */
       payment_method_types: ["card"],
-      mode: "subscription", // OBRIGATÓRIO para trial e recorrente
+      mode: "subscription",
+      customer: customerId,
+
       line_items: [
         {
-          // Usamos o ID que você criou para manter o histórico e relatórios limpos
           price:
             planType === "anual"
-              ? "price_1T9bLUIy32epIweEETjJHLUp"
-              : "price_1T9b0FIy32epIweEDZuKgvvy",
+              ? process.env.PLAN_ANUAL_PASSGUARD
+              : process.env.PLAN_MENSAL_PASSGUARD,
           quantity: 1,
         },
       ],
+
+      // 🔥 ESSENCIAL
       subscription_data: {
-        trial_period_days: 1, // 👈 Seus 7 dias de teste grátis aqui!
+        trial_period_days: 1,
+        metadata: {
+          userId: user.id,
+          planType: planType,
+        },
       },
-      success_url: `passguard://checkout?status=success`,
-      cancel_url: `passguard://checkout?status=cancel`,
+
+      // 🔥 redundância segura
       metadata: {
-        userId: userId,
+        userId: user.id,
         planType: planType,
       },
+
+      success_url: `passguard://checkout?status=success&planType=${planType}`,
+      cancel_url: `passguard://checkout?status=cancel`,
     });
 
     res.json({ id: session.id, url: session.url });
