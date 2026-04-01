@@ -614,16 +614,17 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
 
     // 🔥 2. Criar sessão corretamente
     const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+
       payment_method_types: ["card"],
       mode: "subscription",
-      customer: customerId,
 
       line_items: [
         {
           price:
             planType === "anual"
-              ? process.env.PLAN_ANUAL_PASSGUARD
-              : process.env.PLAN_MENSAL_PASSGUARD,
+              ? "price_1T9bLUIy32epIweEETjJHLUp"
+              : "price_1T9b0FIy32epIweEDZuKgvvy",
           quantity: 1,
         },
       ],
