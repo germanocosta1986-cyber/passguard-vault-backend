@@ -8,7 +8,7 @@ import "dotenv/config";
 import Stripe from "stripe";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-  apiVersion: "2023-10-16" as any,
+  apiVersion: "2026-02-25.clover" as any,
 });
 /* const endpoint =
   "whsec_48e96b5a687cb686cf3964b4416aad40c03428183b99f65232028a3f28096e7e"; */
