@@ -695,7 +695,9 @@ export const getProfile = async (req: Request, res: Response) => {
         recoveryHash: user.recoveryHash || null,
         // Ou melhor ainda por segurança:
         hasRecoveryHash: !!user.recoveryHash,
-
+        //Auto Login
+        allowAutoLogin: user.allowAutoLogin, // A coluna booleana
+        settings: user.settings, // O campo JSON (mesmo que seja null)
         // --- DADOS DE PAGAMENTO ---
         isPremium: user.isPremium,
         planType: user.subscription?.billingCycle || "FREE",
