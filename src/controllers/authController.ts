@@ -733,12 +733,31 @@ export const getProfile = async (req: Request, res: Response) => {
 
 // autologin Update
 export const updateSettings = async (req: Request, res: Response) => {
-  const { allowAutoLogin } = req.body;
-  await prisma.user.update({
-    where: { id: req.userId },
-    data: { allowAutoLogin }, // Se optar pela opção 1
-  });
-  return res.json({ success: true });
+  const { value } = req.body;
+
+  try {
+    const userId = req.userId;
+    const { allowAutoLogin } = req.body;
+
+    console.log(`Tentando atualizar user ${userId} para ${allowAutoLogin}`);
+
+    const result = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        // Se você não criou a coluna, o Prisma vai dar erro aqui.
+        // Se ele não deu erro no Insomnia, é porque a coluna existe.
+        allowAutoLogin: allowAutoLogin,
+      },
+    });
+
+    return res.json({
+      message: "Banco de dados atualizado!",
+      databaseValue: result.allowAutoLogin, // O Insomnia vai mostrar o que realmente caiu no banco
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: "Erro ao gravar no banco" });
+  }
 };
 
 // No seu controller de assinaturas
