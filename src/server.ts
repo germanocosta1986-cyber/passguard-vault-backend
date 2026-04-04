@@ -19,6 +19,7 @@ import {
   signUp,
   updateMasterPassword,
   updateRecovery,
+  updateSettings,
   verifyMasterPassword,
   webhookStripe,
 } from "./controllers/authController";
@@ -44,6 +45,7 @@ app.get("/", (req, res) => res.send("Backend PassGuard Rodando! 🚀"));
 // Suas rotas de API (Mantenha como estão)
 app.get("/api/debug-users", debuguser);
 app.post("/api/login", login);
+app.patch("/api/settings", authMiddleware, updateSettings);
 app.post("/api/signup", signUp);
 app.patch("/api/update-recovery", updateRecovery);
 app.post("/api/auth/recovery-question", getRecoveryQuestion);

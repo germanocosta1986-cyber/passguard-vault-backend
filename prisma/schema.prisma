@@ -28,6 +28,9 @@ model User {
   updatedAt      DateTime @updatedAt
   isPremium      Boolean  @default(false) // 👈 Começa sempre como Free
   // Relacionamentos
+
+  allowAutoLogin Boolean @default(false)
+  settings Json?
   passwords      Password[]
   subscription   Subscription?
   sessions       Session[]

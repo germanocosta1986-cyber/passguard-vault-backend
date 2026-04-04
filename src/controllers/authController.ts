@@ -731,6 +731,16 @@ export const getProfile = async (req: Request, res: Response) => {
   }
 };
 
+// autologin Update
+export const updateSettings = async (req: Request, res: Response) => {
+  const { allowAutoLogin } = req.body;
+  await prisma.user.update({
+    where: { id: req.userId },
+    data: { allowAutoLogin }, // Se optar pela opção 1
+  });
+  return res.json({ success: true });
+};
+
 // No seu controller de assinaturas
 // Controller de Cancelamento
 export const handleStopRenewal = async (req: any, res: any) => {
