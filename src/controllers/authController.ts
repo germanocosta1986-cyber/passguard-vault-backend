@@ -8,7 +8,7 @@ import "dotenv/config";
 import Stripe from "stripe";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-  apiVersion: "2026-02-25.clover" as any,
+  apiVersion: "2024-04-10" as any,
 });
 /* const endpoint =
   "whsec_48e96b5a687cb686cf3964b4416aad40c03428183b99f65232028a3f28096e7e"; */
@@ -64,13 +64,24 @@ export const login = async (req: Request, res: Response) => {
         },
       },
     });
-    console.log("DADOS BRUTOS DO BANCO:", user);
+
     if (!user || !(await bcrypt.compare(masterPassword, user.masterPassword))) {
       return res.status(401).json({ error: "Credenciais inválidas" });
     }
 
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, {
       expiresIn: "1d",
+    });
+
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 24);
+
+    await prisma.session.create({
+      data: {
+        token: token,
+        userId: user.id,
+        expiresAt: expiresAt,
+      },
     });
 
     res.json({
@@ -80,6 +91,7 @@ export const login = async (req: Request, res: Response) => {
         name: user.name,
         email: user.email,
         birthYear: user.birthYear,
+
         // --- NOVOS CAMPOS NO LOGIN ---
         recoveryQuestion: user.recoveryQuestion,
         hasRecoveryConfigured: !!user.recoveryHash, // Facilita o check no Front
@@ -486,7 +498,7 @@ export const webhookStripe = async (req: any, res: any) => {
               style: "currency",
               currency: "BRL",
             }),
-            date: new Date(),
+            date: new Date(invoice.created * 1000),
             expiryDate: expiryDate,
             planType: sub.billingCycle || "mensal",
             status: "Paga",
@@ -507,33 +519,53 @@ export const webhookStripe = async (req: any, res: any) => {
   // --- 3. CANCELAMENTO OU EXPIRAÇÃO ---
   if (
     event.type === "customer.subscription.deleted" ||
-    event.type === "invoice.payment_failed"
+    event.type === "customer.subscription.updated" // Adicionado para capturar status 'past_due'
   ) {
     const subscription = event.data.object as Stripe.Subscription;
+    // Garantia de tipo
 
-    try {
-      const sub = await prisma.subscription.findFirst({
-        where: { stripeSubscriptionId: subscription.id },
-      });
+    // Só removemos o premium se o status for realmente de encerramento
+    const statusToDowngrade = ["canceled", "unpaid", "incomplete_expired"];
 
-      if (sub) {
-        await prisma.subscription.update({
-          where: { id: sub.id },
-          data: {
-            status: "canceled",
-            isPremium: false,
-          },
+    if (statusToDowngrade.includes(subscription.status)) {
+      try {
+        const sub = await prisma.subscription.findFirst({
+          where: { stripeSubscriptionId: subscription.id },
         });
 
-        await prisma.user.update({
-          where: { id: sub.userId },
-          data: { isPremium: false },
-        });
-        console.log(`📉 Premium removido: Subscription ${subscription.id}`);
+        if (sub) {
+          // 🔄 Transação atômica: ou atualiza tudo ou nada
+          await prisma.$transaction([
+            prisma.subscription.update({
+              where: { id: sub.id },
+              data: {
+                status: subscription.status,
+                isPremium: false,
+                cancelAtPeriodEnd: subscription.cancel_at_period_end,
+              },
+            }),
+            prisma.user.update({
+              where: { id: sub.userId },
+              data: { isPremium: false },
+            }),
+          ]);
+
+          console.log(
+            `📉 Premium removido: Subscription ${subscription.id} (Status: ${subscription.status})`,
+          );
+        }
+      } catch (err) {
+        console.error("❌ Erro ao processar downgrade:", err);
       }
-    } catch (err) {
-      console.error("❌ Erro ao processar downgrade:", err);
     }
+  }
+
+  // 🔔 Opcional: Apenas logar falhas de pagamento sem remover o acesso ainda
+  if (event.type === "invoice.payment_failed") {
+    const invoice = event.data.object as Stripe.Invoice;
+    console.warn(
+      `⚠️ Falha de pagamento para o usuário: ${invoice.customer_email}. O Stripe tentará novamente.`,
+    );
   }
 
   res.json({ received: true });
@@ -692,6 +724,44 @@ export const getProfile = async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Erro getProfile:", error);
     return res.status(500).json({ error: "Erro ao buscar perfil." });
+  }
+};
+
+// No seu controller de assinaturas
+// Controller de Cancelamento
+export const handleStopRenewal = async (req: any, res: any) => {
+  const { subscriptionId } = req.body;
+
+  try {
+    const subscription: Stripe.Subscription = await stripe.subscriptions.update(
+      subscriptionId,
+      {
+        cancel_at_period_end: true,
+      },
+    );
+
+    const expiryDate = new Date(
+      (subscription as any).current_period_end * 1000,
+    );
+
+    await prisma.subscription.update({
+      where: { stripeSubscriptionId: subscriptionId },
+      data: {
+        cancelAtPeriodEnd: true,
+        status: subscription.status,
+        expiryDate,
+      },
+    });
+
+    return res.status(200).send({
+      message: "Renovação interrompida.",
+      expiresAt: expiryDate,
+    });
+  } catch (error: any) {
+    console.error("Erro ao cancelar:", error.message);
+    return res.status(500).send({
+      error: "Falha ao processar cancelamento no Stripe.",
+    });
   }
 };
 
