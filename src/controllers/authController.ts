@@ -662,6 +662,8 @@ export const getProfile = async (req: Request, res: Response) => {
       where: { id: userId },
       include: {
         subscription: true,
+        recoveryQuestion: true, // 🔍 TEM QUE ESTAR AQUI
+        recoveryHash: true,
         invoices: {
           orderBy: { date: "desc" },
           take: 15, // Aumentei um pouco para garantir um histórico melhor
