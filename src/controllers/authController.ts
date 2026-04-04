@@ -98,7 +98,7 @@ export const login = async (req: Request, res: Response) => {
         // ------------------------------
         createdAt: user.createdAt,
         isPremium: user.isPremium,
-
+        allowAutoLogin: user.allowAutoLogin,
         subscription: {
           status: user.subscription?.status || "none",
           planType: user.subscription?.billingCycle || "FREE",
@@ -733,30 +733,22 @@ export const getProfile = async (req: Request, res: Response) => {
 
 // autologin Update
 export const updateSettings = async (req: Request, res: Response) => {
-  const { value } = req.body;
-
   try {
-    const userId = req.userId;
     const { allowAutoLogin } = req.body;
+    const userId = req.userId;
 
-    console.log(`Tentando atualizar user ${userId} para ${allowAutoLogin}`);
-
-    const result = await prisma.user.update({
+    const updatedUser = await prisma.user.update({
       where: { id: userId },
-      data: {
-        // Se você não criou a coluna, o Prisma vai dar erro aqui.
-        // Se ele não deu erro no Insomnia, é porque a coluna existe.
-        allowAutoLogin: allowAutoLogin,
-      },
+      data: { allowAutoLogin }, // 👈 Certifique-se que o nome da coluna no Prisma é este
     });
 
     return res.json({
-      message: "Banco de dados atualizado!",
-      databaseValue: result.allowAutoLogin, // O Insomnia vai mostrar o que realmente caiu no banco
+      success: true,
+      allowAutoLogin: updatedUser.allowAutoLogin,
     });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ error: "Erro ao gravar no banco" });
+    console.error("Erro ao salvar settings:", error);
+    return res.status(500).json({ error: "Erro ao atualizar banco" });
   }
 };
 
