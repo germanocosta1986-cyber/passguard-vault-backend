@@ -662,8 +662,6 @@ export const getProfile = async (req: Request, res: Response) => {
       where: { id: userId },
       include: {
         subscription: true,
-        recoveryQuestion: true, // 🔍 TEM QUE ESTAR AQUI
-        recoveryHash: true,
         invoices: {
           orderBy: { date: "desc" },
           take: 15, // Aumentei um pouco para garantir um histórico melhor
@@ -691,8 +689,12 @@ export const getProfile = async (req: Request, res: Response) => {
         masterPassword: user.masterPassword,
         createdAt: user.createdAt,
 
-        // --- DADOS DE SEGURANÇA (Para o Splash carregar) ---
+        // --- DADOS DE SEGURANÇA ---
         recoveryQuestion: user.recoveryQuestion || null,
+        // 🚀 ADICIONE ESTA LINHA AQUI:
+        recoveryHash: user.recoveryHash || null,
+        // Ou melhor ainda por segurança:
+        hasRecoveryHash: !!user.recoveryHash,
 
         // --- DADOS DE PAGAMENTO ---
         isPremium: user.isPremium,
