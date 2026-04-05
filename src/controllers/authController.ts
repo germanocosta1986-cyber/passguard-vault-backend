@@ -656,7 +656,7 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
 
 export const getProfile = async (req: Request, res: Response) => {
   try {
-    const userId = req.userId;
+    const { userId, subscriptionId } = req.body;
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -668,6 +668,10 @@ export const getProfile = async (req: Request, res: Response) => {
         },
       },
     });
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    const interval = subscription.items.data[0].price.recurring.interval;
+
+    const billingCycle = interval === "month" ? "mensal" : "anual";
 
     if (!user) {
       return res.status(404).json({ error: "Usuário não encontrado." });
@@ -676,6 +680,7 @@ export const getProfile = async (req: Request, res: Response) => {
     // Calculamos a data de expiração real
     // Se não tiver subscription, usamos null.
     // Se tiver, priorizamos o expiryDate da assinatura.
+
     const expiryDate = user.subscription?.expiryDate
       ? new Date(user.subscription.expiryDate).getTime()
       : null;
@@ -707,6 +712,7 @@ export const getProfile = async (req: Request, res: Response) => {
         // Enviamos o trialEndsAt para o App saber se ainda está no teste
         subscription: {
           status: user.subscription?.status,
+          billingCycle: user.subscription?.billingCycle || "FREE",
           trialEndsAt: user.subscription?.trialEndsAt
             ? new Date(user.subscription.trialEndsAt).getTime()
             : null,
