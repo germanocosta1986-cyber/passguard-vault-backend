@@ -693,7 +693,7 @@ export const getProfile = async (req: Request, res: Response) => {
         birthYear: user.birthYear,
         masterPassword: user.masterPassword,
         createdAt: user.createdAt,
-
+        billingCycle: billingCycle, // Adicionamos o ciclo de cobrança aqui
         // --- DADOS DE SEGURANÇA ---
         recoveryQuestion: user.recoveryQuestion || null,
         // 🚀 ADICIONE ESTA LINHA AQUI:
