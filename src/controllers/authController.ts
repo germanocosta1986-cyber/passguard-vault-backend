@@ -724,6 +724,7 @@ export const getProfile = async (req: Request, res: Response) => {
           // 🔥 NOVO
           hostedInvoiceUrl: inv.hostedInvoiceUrl,
           invoicePdf: inv.invoicePdf,
+          stripeInvoiceId: inv.stripeInvoiceId,
         })),
       },
     });
