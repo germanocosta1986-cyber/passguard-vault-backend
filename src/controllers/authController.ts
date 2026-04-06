@@ -667,22 +667,29 @@ export const getProfile = async (req: Request, res: Response) => {
         subscription: true,
         invoices: {
           orderBy: { date: "desc" },
-          take: 15, // Aumentei um pouco para garantir um histórico melhor
+          take: 15,
         },
       },
     });
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-    const interval = subscription.items.data[0].price.recurring.interval;
-
-    const billingCycle = interval === "month" ? "mensal" : "anual";
 
     if (!user) {
       return res.status(404).json({ error: "Usuário não encontrado." });
     }
 
-    // Calculamos a data de expiração real
-    // Se não tiver subscription, usamos null.
-    // Se tiver, priorizamos o expiryDate da assinatura.
+    // 🛡️ PROTEÇÃO 1: Só busca no Stripe se houver subscriptionId
+    let billingCycle = "mensal";
+    if (subscriptionId && user.isPremium) {
+      try {
+        const subscription =
+          await stripe.subscriptions.retrieve(subscriptionId);
+        const interval = subscription.items.data[0].price.recurring.interval;
+        billingCycle = interval === "month" ? "mensal" : "anual";
+      } catch (stripeErr) {
+        console.error("Erro ao buscar no Stripe:", stripeErr);
+        // Não travamos o login se o Stripe falhar, usamos o dado do banco
+        billingCycle = user.subscription?.billingCycle || "mensal";
+      }
+    }
 
     const expiryDate = user.subscription?.expiryDate
       ? new Date(user.subscription.expiryDate).getTime()
@@ -693,64 +700,54 @@ export const getProfile = async (req: Request, res: Response) => {
         id: user.id,
         name: user.name,
         email: user.email,
-
         birthYear: user.birthYear,
         masterPassword: user.masterPassword,
         createdAt: user.createdAt,
-        billingCycle: billingCycle, // Adicionamos o ciclo de cobrança aqui
-        // --- DADOS DE SEGURANÇA ---
-        recoveryQuestion: user.recoveryQuestion || null,
-        // 🚀 ADICIONE ESTA LINHA AQUI:
-        recoveryHash: user.recoveryHash || null,
-        // Ou melhor ainda por segurança:
+        billingCycle: billingCycle,
         hasRecoveryHash: !!user.recoveryHash,
-        //Auto Login
-        allowAutoLogin: user.allowAutoLogin, // A coluna booleana
-        settings: user.settings, // O campo JSON (mesmo que seja null)
-        // --- DADOS DE PAGAMENTO ---
+        allowAutoLogin: user.allowAutoLogin,
+        settings: user.settings,
         isPremium: user.isPremium,
+
+        // 🛡️ PROTEÇÃO 2: Acessando planType com segurança
         planType: user.subscription?.planType || "FREE",
         premiumExpiryDate: expiryDate,
         cancelAtPeriodEnd: user.subscription?.cancelAtPeriodEnd || false,
 
-        // Enviamos o trialEndsAt para o App saber se ainda está no teste
         subscription: {
-          status: user.subscription?.status,
-          billingCycle: user.subscription?.billingCycle || "mensal",
+          status: user.subscription?.status || "inactive",
+          billingCycle: user.subscription?.billingCycle || "FREE",
           trialEndsAt: user.subscription?.trialEndsAt
             ? new Date(user.subscription.trialEndsAt).getTime()
             : null,
         },
-        // --- HISTÓRICO DE FATURAS ---
 
-        invoices: user.invoices.map((inv: any) => ({
+        // --- HISTÓRICO DE FATURAS ---
+        invoices: (user.invoices || []).map((inv: any) => ({
           id: inv.id,
-          date: new Date(inv.date).getTime(),
+          // 🛡️ PROTEÇÃO 3: Verificação de data para não quebrar o getTime()
+          date: inv.date ? new Date(inv.date).getTime() : Date.now(),
           amount: inv.amount,
           status: inv.status,
           expiryDate: inv.expiryDate
             ? new Date(inv.expiryDate).getTime()
             : null,
 
-          // 🔥 Campos que estavam faltando e que o App precisa:
           method: inv.method || "Cartão de Crédito",
-          planType: inv.planType,
-          billingCycle: inv.billingCycle,
-          planName:
-            inv.planName ||
-            (billingCycle === "anual" ? "Plano Anual" : "Plano Mensal"),
-          stripeSubscriptionId: inv.stripeSubscriptionId || "",
+          planType: inv.planType || "PRO",
+          billingCycle: inv.billingCycle || "mensal",
+          planName: inv.planName || `Plano ${inv.planType || "PRO"}`,
 
-          // 🔥 Garantindo que esses aqui passem:
-          hostedInvoiceUrl: inv.hostedInvoiceUrl,
-          invoicePdf: inv.invoicePdf,
-          stripeInvoiceId: inv.stripeInvoiceId,
+          stripeSubscriptionId: inv.stripeSubscriptionId || "",
+          hostedInvoiceUrl: inv.hostedInvoiceUrl || "",
+          invoicePdf: inv.invoicePdf || "",
+          stripeInvoiceId: inv.stripeInvoiceId || "",
         })),
       },
     });
   } catch (error) {
-    console.error("Erro getProfile:", error);
-    return res.status(500).json({ error: "Erro ao buscar perfil." });
+    console.error("Erro fatal getProfile:", error);
+    return res.status(500).json({ error: "Erro interno no servidor." });
   }
 };
 
