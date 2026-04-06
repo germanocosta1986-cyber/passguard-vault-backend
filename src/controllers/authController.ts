@@ -690,6 +690,7 @@ export const getProfile = async (req: Request, res: Response) => {
         id: user.id,
         name: user.name,
         email: user.email,
+
         birthYear: user.birthYear,
         masterPassword: user.masterPassword,
         createdAt: user.createdAt,
@@ -727,7 +728,14 @@ export const getProfile = async (req: Request, res: Response) => {
             ? new Date(inv.expiryDate).getTime()
             : null,
 
-          // 🔥 NOVO
+          // 🔥 Campos que estavam faltando e que o App precisa:
+          method: inv.method || "Cartão de Crédito",
+          planName:
+            inv.planName ||
+            (billingCycle === "anual" ? "Plano Anual" : "Plano Mensal"),
+          stripeSubscriptionId: inv.stripeSubscriptionId || "",
+
+          // 🔥 Garantindo que esses aqui passem:
           hostedInvoiceUrl: inv.hostedInvoiceUrl,
           invoicePdf: inv.invoicePdf,
           stripeInvoiceId: inv.stripeInvoiceId,
