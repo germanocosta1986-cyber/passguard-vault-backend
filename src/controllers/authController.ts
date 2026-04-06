@@ -100,8 +100,9 @@ export const login = async (req: Request, res: Response) => {
         isPremium: user.isPremium,
         allowAutoLogin: user.allowAutoLogin,
         subscription: {
-          status: user.subscription?.status || "none",
-          planType: user.subscription?.billingCycle || "FREE",
+          status: user.subscription?.status,
+          planType: user.subscription?.planType || "FREE",
+          billingCycele: user.subscription?.billingCycle || "mensal",
           trialEndsAt: user.subscription?.trialEndsAt
             ? new Date(user.subscription.trialEndsAt).getTime()
             : null,
@@ -421,9 +422,11 @@ export const webhookStripe = async (req: any, res: any) => {
     const userId = session.metadata?.userId;
     const customerId = session.customer as string;
     const subscriptionId = session.subscription as string;
-    const planType = session.metadata?.planType || "mensal";
+    const billingCycle = session.metadata?.billingCycle || "mensal";
 
-    console.log(`🚀 Checkout Finalizado! User: ${userId} | Plan: ${planType}`);
+    console.log(
+      `🚀 Checkout Finalizado! User: ${userId} | Plan: ${billingCycle}`,
+    );
 
     if (userId) {
       await prisma.subscription.upsert({
@@ -433,7 +436,7 @@ export const webhookStripe = async (req: any, res: any) => {
           stripeSubscriptionId: subscriptionId,
           status: "trialing",
           isPremium: true,
-          billingCycle: planType, // Garante que não apareça "FREE" no app
+          billingCycle: billingCycle, // Garante que não apareça "FREE" no app
           expiryDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000), // 24h de Trial
           trialEndsAt: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000),
         },
@@ -443,7 +446,7 @@ export const webhookStripe = async (req: any, res: any) => {
           stripeSubscriptionId: subscriptionId,
           status: "trialing",
           isPremium: true,
-          billingCycle: planType,
+          billingCycle: billingCycle,
           expiryDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000),
           trialEndsAt: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000),
         },
@@ -500,7 +503,7 @@ export const webhookStripe = async (req: any, res: any) => {
             }),
             date: new Date(invoice.created * 1000),
             expiryDate: expiryDate,
-            planType: sub.billingCycle || "mensal",
+            billingCycle: sub.billingCycle || "mensal",
             status: "Paga",
             stripeInvoiceId: invoice.id,
             hostedInvoiceUrl: invoice.hosted_invoice_url,
@@ -574,7 +577,7 @@ export const webhookStripe = async (req: any, res: any) => {
 /* STRIPE CHECKOUT SESSION */
 export const createCheckoutSession = async (req: Request, res: Response) => {
   try {
-    const { userId, planType } = req.body;
+    const { userId, billingCycle } = req.body;
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -621,7 +624,7 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
       line_items: [
         {
           price:
-            planType === "anual"
+            billingCycle === "anual"
               ? "price_1T9bLUIy32epIweEETjJHLUp"
               : "price_1T9b0FIy32epIweEDZuKgvvy",
           quantity: 1,
@@ -633,17 +636,17 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
         trial_period_days: 1,
         metadata: {
           userId: user.id,
-          planType: planType,
+          billingCycle: billingCycle,
         },
       },
 
       // 🔥 redundância segura
       metadata: {
         userId: user.id,
-        planType: planType,
+        billingCycle: billingCycle,
       },
 
-      success_url: `passguard://checkout?status=success&planType=${planType}`,
+      success_url: `passguard://checkout?status=success&billingCycle=${billingCycle}`,
       cancel_url: `passguard://checkout?status=cancel`,
     });
 
@@ -706,19 +709,20 @@ export const getProfile = async (req: Request, res: Response) => {
         settings: user.settings, // O campo JSON (mesmo que seja null)
         // --- DADOS DE PAGAMENTO ---
         isPremium: user.isPremium,
-        planType: user.subscription?.billingCycle || "FREE",
+        planType: user.subscription?.planType || "FREE",
         premiumExpiryDate: expiryDate,
         cancelAtPeriodEnd: user.subscription?.cancelAtPeriodEnd || false,
 
         // Enviamos o trialEndsAt para o App saber se ainda está no teste
         subscription: {
           status: user.subscription?.status,
-          billingCycle: user.subscription?.billingCycle || "FREE",
+          billingCycle: user.subscription?.billingCycle || "mensal",
           trialEndsAt: user.subscription?.trialEndsAt
             ? new Date(user.subscription.trialEndsAt).getTime()
             : null,
         },
         // --- HISTÓRICO DE FATURAS ---
+
         invoices: user.invoices.map((inv: any) => ({
           id: inv.id,
           date: new Date(inv.date).getTime(),
@@ -730,6 +734,8 @@ export const getProfile = async (req: Request, res: Response) => {
 
           // 🔥 Campos que estavam faltando e que o App precisa:
           method: inv.method || "Cartão de Crédito",
+          planType: inv.planType,
+          billingCycle: inv.billingCycle,
           planName:
             inv.planName ||
             (billingCycle === "anual" ? "Plano Anual" : "Plano Mensal"),
@@ -925,7 +931,7 @@ export const checkSubscription = async (req: Request, res: Response) => {
       status: sub.status, // "trialing", "active", "canceled", etc
       trialEndsAt: sub.trialEndsAt ? new Date(sub.trialEndsAt).getTime() : null,
       isPro: isPro,
-      planType: sub.billingCycle,
+      billingCycle: sub.billingCycle,
     });
   } catch (error) {
     console.error("❌ Erro no CheckSubscription:", error);

@@ -86,7 +86,8 @@ model Invoice {
   amount      String   // Ex: "R$ 99,90"
   date        DateTime @default(now())
   expiryDate  DateTime // Até quando essa fatura deu acesso
-  planType    String   // "mensal" ou "anual"
+  planType    String? @default("PRO")   // "FREE" ou "PRO"
+  billingCycle String? @default("mensal") // "mensal" ou "anual"
   status      String   @default("Paga") // "Paga", "Cancelada"
   stripeInvoiceId String? @unique
 
