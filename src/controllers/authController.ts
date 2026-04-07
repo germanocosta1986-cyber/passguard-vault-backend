@@ -659,7 +659,7 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
 
 export const getProfile = async (req: Request, res: Response) => {
   try {
-    const userId = req.userId;
+    const { userId, subscriptionId } = req.body;
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -678,11 +678,10 @@ export const getProfile = async (req: Request, res: Response) => {
 
     // 🛡️ PROTEÇÃO 1: Só busca no Stripe se houver subscriptionId
     let billingCycle = "mensal";
-    if (user.subscription?.stripeSubscriptionId && user.isPremium) {
+    if (subscriptionId && user.isPremium) {
       try {
-        const subscription = await stripe.subscriptions.retrieve(
-          user.subscription.stripeSubscriptionId,
-        );
+        const subscription =
+          await stripe.subscriptions.retrieve(subscriptionId);
         const interval = subscription.items.data[0].price.recurring.interval;
         billingCycle = interval === "month" ? "mensal" : "anual";
       } catch (stripeErr) {
