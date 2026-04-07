@@ -63,6 +63,7 @@ export const login = async (req: Request, res: Response) => {
       },
     });
 
+    console.log("DADOS BRUTOS LOGIN: ", user);
     if (!user || !(await bcrypt.compare(masterPassword, user.masterPassword))) {
       return res.status(401).json({ error: "Credenciais inválidas" });
     }
@@ -658,7 +659,7 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
 export const getProfile = async (req: any, res: Response) => {
   try {
     // 🛡️ PEGA O ID DO MIDDLEWARE (Como era no antigo)
-    const userId = req.user?.id;
+    const userId = req.userId;
 
     if (!userId) {
       return res.status(401).json({ error: "Sessão expirada ou inválida." });
