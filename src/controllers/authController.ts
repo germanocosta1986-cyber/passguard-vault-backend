@@ -694,7 +694,10 @@ export const getProfile = async (req: any, res: Response) => {
         email: user.email,
         isPremium: user.isPremium,
         premiumExpiryDate: premiumExpiry,
-
+        recoveryQuestion: user.recoveryQuestion,
+        hasRecoveryConfigured: !!user.recoveryHash,
+        recoveryHash: user.recoveryHash ? true : false, // Para o Front saber se tem hash configurado
+        allowAutoLogin: user.allowAutoLogin,
         planType: subscription?.planType ?? "FREE",
         billingCycle:
           subscription?.planType === "PRO"
