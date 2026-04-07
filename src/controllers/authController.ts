@@ -10,8 +10,6 @@ import Stripe from "stripe";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
   apiVersion: "2024-04-10" as any,
 });
-/* const endpoint =
-  "whsec_48e96b5a687cb686cf3964b4416aad40c03428183b99f65232028a3f28096e7e"; */
 
 const JWT_SECRET = process.env.JWT_SECRET || "sua_chave_secreta_ultra_segura";
 
@@ -102,7 +100,7 @@ export const login = async (req: Request, res: Response) => {
         subscription: {
           status: user.subscription?.status,
           planType: user.subscription?.planType || "FREE",
-          billingCycele: user.subscription?.billingCycle || "mensal",
+          billingCycle: user.subscription?.billingCycle || null,
           trialEndsAt: user.subscription?.trialEndsAt
             ? new Date(user.subscription.trialEndsAt).getTime()
             : null,
@@ -184,9 +182,9 @@ export const signUp = async (req: Request, res: Response) => {
 export const updateRecovery = async (req: Request, res: Response) => {
   try {
     // Pegamos o ID do usuário (geralmente vem do middleware de auth ou do corpo)
-    const { userId, recoveryQuestion, recoveryHash } = req.body;
+    const { userId } = req.body;
 
-    if (!recoveryQuestion || !recoveryHash) {
+    if (!userId.recoveryQuestion || !userId.recoveryHash) {
       return res
         .status(400)
         .json({ error: "Pergunta e Hash são obrigatórios." });
@@ -196,8 +194,8 @@ export const updateRecovery = async (req: Request, res: Response) => {
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
-        recoveryQuestion: recoveryQuestion,
-        recoveryHash: recoveryHash,
+        recoveryQuestion: userId.recoveryQuestion,
+        recoveryHash: userId.recoveryHash,
       },
     });
 
@@ -388,7 +386,7 @@ export const makePremium = async (req: Request, res: Response) => {
         invoices: {
           create: {
             amount: cycle === "anual" ? "R$ 99,90" : "R$ 12,90",
-            planType: cycle,
+            planType: "PRO",
             expiryDate: expiryDate,
           },
         },
@@ -686,6 +684,8 @@ export const getProfile = async (req: any, res: Response) => {
       ? new Date(user.subscription.expiryDate).getTime()
       : null;
 
+    const subscription = user.subscription;
+
     res.json({
       user: {
         id: user.id,
@@ -694,30 +694,34 @@ export const getProfile = async (req: any, res: Response) => {
         isPremium: user.isPremium,
         premiumExpiryDate: premiumExpiry,
 
-        // 🚀 DADOS DA ASSINATURA (Do seu Schema novo)
-        planType: user.subscription?.planType || "FREE",
-        billingCycle: user.subscription?.billingCycle || "mensal",
+        planType: subscription?.planType ?? "FREE",
+        billingCycle:
+          subscription?.planType === "PRO"
+            ? (subscription.billingCycle ?? null)
+            : null,
 
         subscription: {
-          id: user.subscription?.id,
-          planType: user.subscription?.planType || "FREE",
-          billingCycle: user.subscription?.billingCycle || "mensal",
-          isPremium: user.subscription?.isPremium || false,
-          status: user.subscription?.status || "none",
+          id: subscription?.id,
+          planType: subscription?.planType ?? "FREE",
+          billingCycle:
+            subscription?.planType === "PRO"
+              ? (subscription.billingCycle ?? null)
+              : null,
+          isPremium: subscription?.isPremium ?? false,
+          status: subscription?.status ?? "none",
 
-          // Convertendo as datas para Timestamp para o React Native não se perder
-          trialEndsAt: user.subscription?.trialEndsAt
-            ? new Date(user.subscription.trialEndsAt).getTime()
-            : null,
-          expiryDate: user.subscription?.expiryDate
-            ? new Date(user.subscription.expiryDate).getTime()
+          trialEndsAt: subscription?.trialEndsAt
+            ? new Date(subscription.trialEndsAt).getTime()
             : null,
 
-          cancelAtPeriodEnd: user.subscription?.cancelAtPeriodEnd || false,
-          stripeSubscriptionId: user.subscription?.stripeSubscriptionId || null,
+          expiryDate: subscription?.expiryDate
+            ? new Date(subscription.expiryDate).getTime()
+            : null,
+
+          cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd ?? false,
+          stripeSubscriptionId: subscription?.stripeSubscriptionId ?? null,
         },
 
-        // --- HISTÓRICO DE FATURAS (Os 11 campos que o Front quer) ---
         invoices: (user.invoices || []).map((inv: any) => ({
           id: inv.id,
           date: inv.date ? new Date(inv.date).getTime() : Date.now(),
@@ -727,12 +731,14 @@ export const getProfile = async (req: any, res: Response) => {
             ? new Date(inv.expiryDate).getTime()
             : null,
 
-          // Fabricamos o planName para o Front não ficar vazio
-          planName: `PassGuard ${inv.planType || "PRO"} ${inv.billingCycle === "anual" ? "Anual" : "Mensal"}`,
+          planName:
+            inv.planType === "FREE"
+              ? "Plano Gratuito"
+              : `PassGuard PRO ${inv.billingCycle === "anual" ? "Anual" : "Mensal"}`,
 
           method: inv.method || "Cartão de Crédito",
-          planType: inv.planType || "PRO",
-          billingCycle: inv.billingCycle || "mensal",
+          planType: inv.planType ?? "PRO",
+          billingCycle: inv.billingCycle ?? null,
           hostedInvoiceUrl: inv.hostedInvoiceUrl || "",
           invoicePdf: inv.invoicePdf || "",
           stripeInvoiceId: inv.stripeInvoiceId || "",
