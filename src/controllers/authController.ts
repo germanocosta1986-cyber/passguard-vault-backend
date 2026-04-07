@@ -715,8 +715,12 @@ export const getProfile = async (req: any, res: Response) => {
             ? new Date(subscription.trialEndsAt).getTime()
             : null,
 
-          expiryDate: subscription?.expiryDate
-            ? new Date(subscription.expiryDate).getTime()
+          expiryDate: user.subscription?.expiryDate
+            ? new Date(user.subscription.expiryDate).getTime()
+            : null,
+
+          premiumExpiryDate: user.subscription?.expiryDate
+            ? new Date(user.subscription.expiryDate).getTime()
             : null,
 
           cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd ?? false,
