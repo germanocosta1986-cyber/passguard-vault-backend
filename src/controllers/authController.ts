@@ -657,14 +657,19 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
   }
 };
 
-export const getProfile = async (req: Request, res: Response) => {
+export const getProfile = async (req: any, res: Response) => {
   try {
-    const { userId, subscriptionId } = req.body;
+    // 🛡️ PEGA O ID DO MIDDLEWARE (Como era no antigo)
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: "Sessão expirada ou inválida." });
+    }
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
-        subscription: true,
+        subscription: true, // 💎 Já traz planType e billingCycle do banco
         invoices: {
           orderBy: { date: "desc" },
           take: 15,
@@ -676,22 +681,8 @@ export const getProfile = async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Usuário não encontrado." });
     }
 
-    // 🛡️ PROTEÇÃO 1: Só busca no Stripe se houver subscriptionId
-    let billingCycle = "mensal";
-    if (subscriptionId && user.isPremium) {
-      try {
-        const subscription =
-          await stripe.subscriptions.retrieve(subscriptionId);
-        const interval = subscription.items.data[0].price.recurring.interval;
-        billingCycle = interval === "month" ? "mensal" : "anual";
-      } catch (stripeErr) {
-        console.error("Erro ao buscar no Stripe:", stripeErr);
-        // Não travamos o login se o Stripe falhar, usamos o dado do banco
-        billingCycle = user.subscription?.billingCycle || "mensal";
-      }
-    }
-
-    const expiryDate = user.subscription?.expiryDate
+    // 🕒 Datas formatadas com segurança
+    const premiumExpiry = user.subscription?.expiryDate
       ? new Date(user.subscription.expiryDate).getTime()
       : null;
 
@@ -700,32 +691,35 @@ export const getProfile = async (req: Request, res: Response) => {
         id: user.id,
         name: user.name,
         email: user.email,
-        birthYear: user.birthYear,
-        masterPassword: user.masterPassword,
-        createdAt: user.createdAt,
-        billingCycle: billingCycle,
-        hasRecoveryHash: !!user.recoveryHash,
-        allowAutoLogin: user.allowAutoLogin,
-        settings: user.settings,
         isPremium: user.isPremium,
+        premiumExpiryDate: premiumExpiry,
 
-        // 🛡️ PROTEÇÃO 2: Acessando planType com segurança
+        // 🚀 DADOS DA ASSINATURA (Do seu Schema novo)
         planType: user.subscription?.planType || "FREE",
-        premiumExpiryDate: expiryDate,
-        cancelAtPeriodEnd: user.subscription?.cancelAtPeriodEnd || false,
+        billingCycle: user.subscription?.billingCycle || "mensal",
 
         subscription: {
-          status: user.subscription?.status || "inactive",
-          billingCycle: user.subscription?.billingCycle || "FREE",
+          id: user.subscription?.id,
+          planType: user.subscription?.planType || "FREE",
+          billingCycle: user.subscription?.billingCycle || "mensal",
+          isPremium: user.subscription?.isPremium || false,
+          status: user.subscription?.status || "none",
+
+          // Convertendo as datas para Timestamp para o React Native não se perder
           trialEndsAt: user.subscription?.trialEndsAt
             ? new Date(user.subscription.trialEndsAt).getTime()
             : null,
+          expiryDate: user.subscription?.expiryDate
+            ? new Date(user.subscription.expiryDate).getTime()
+            : null,
+
+          cancelAtPeriodEnd: user.subscription?.cancelAtPeriodEnd || false,
+          stripeSubscriptionId: user.subscription?.stripeSubscriptionId || null,
         },
 
-        // --- HISTÓRICO DE FATURAS ---
+        // --- HISTÓRICO DE FATURAS (Os 11 campos que o Front quer) ---
         invoices: (user.invoices || []).map((inv: any) => ({
           id: inv.id,
-          // 🛡️ PROTEÇÃO 3: Verificação de data para não quebrar o getTime()
           date: inv.date ? new Date(inv.date).getTime() : Date.now(),
           amount: inv.amount,
           status: inv.status,
@@ -733,12 +727,12 @@ export const getProfile = async (req: Request, res: Response) => {
             ? new Date(inv.expiryDate).getTime()
             : null,
 
+          // Fabricamos o planName para o Front não ficar vazio
+          planName: `PassGuard ${inv.planType || "PRO"} ${inv.billingCycle === "anual" ? "Anual" : "Mensal"}`,
+
           method: inv.method || "Cartão de Crédito",
           planType: inv.planType || "PRO",
           billingCycle: inv.billingCycle || "mensal",
-          planName: inv.planName || `Plano ${inv.planType || "PRO"}`,
-
-          stripeSubscriptionId: inv.stripeSubscriptionId || "",
           hostedInvoiceUrl: inv.hostedInvoiceUrl || "",
           invoicePdf: inv.invoicePdf || "",
           stripeInvoiceId: inv.stripeInvoiceId || "",
