@@ -696,7 +696,7 @@ export const getProfile = async (req: any, res: Response) => {
         premiumExpiryDate: premiumExpiry,
         recoveryQuestion: user.recoveryQuestion,
         hasRecoveryConfigured: !!user.recoveryHash,
-        recoveryHash: user.recoveryHash ? true : false, // Para o Front saber se tem hash configurado
+
         allowAutoLogin: user.allowAutoLogin,
         planType: subscription?.planType ?? "FREE",
         billingCycle:
@@ -783,37 +783,61 @@ export const updateSettings = async (req: Request, res: Response) => {
 // No seu controller de assinaturas
 // Controller de Cancelamento
 export const handleStopRenewal = async (req: any, res: any) => {
-  const { subscriptionId } = req.body;
-
   try {
-    const subscription: Stripe.Subscription = await stripe.subscriptions.update(
-      subscriptionId,
+    const userId = req.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: "Não autorizado." });
+    }
+
+    type StripeSubscriptionWithPeriodEnd = Stripe.Subscription & {
+      current_period_end: number;
+    };
+
+    // 🔍 Busca a subscription do usuário no banco
+    const sub = await prisma.subscription.findUnique({
+      where: { userId: String(userId) },
+      // Para garantir que temos os dados do usuário se precisar logar ou validar algo mais
+    });
+
+    if (!sub?.stripeSubscriptionId) {
+      return res.status(404).json({
+        error: "Assinatura não encontrada.",
+      });
+    }
+
+    // 🔥 Cancela no fim do período
+    const stripeSub = (await stripe.subscriptions.update(
+      sub.stripeSubscriptionId,
       {
         cancel_at_period_end: true,
       },
-    );
+    )) as unknown as StripeSubscriptionWithPeriodEnd; // Garantia de tipo para acessar current_period_end;
 
-    const expiryDate = new Date(
-      (subscription as any).current_period_end * 1000,
-    );
+    const expiryDate = new Date(stripeSub.current_period_end * 1000);
 
+    if (!stripeSub.current_period_end) {
+      throw new Error("Stripe não retornou current_period_end");
+    }
+
+    // 💾 Atualiza banco
     await prisma.subscription.update({
-      where: { stripeSubscriptionId: subscriptionId },
+      where: { id: sub.id },
       data: {
         cancelAtPeriodEnd: true,
-        status: subscription.status,
+        status: stripeSub.status,
         expiryDate,
       },
     });
 
-    return res.status(200).send({
-      message: "Renovação interrompida.",
+    return res.status(200).json({
+      message: "Renovação cancelada com sucesso.",
       expiresAt: expiryDate,
     });
   } catch (error: any) {
     console.error("Erro ao cancelar:", error.message);
-    return res.status(500).send({
-      error: "Falha ao processar cancelamento no Stripe.",
+    return res.status(500).json({
+      error: "Erro ao cancelar assinatura.",
     });
   }
 };

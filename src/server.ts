@@ -12,6 +12,7 @@ import {
   deletePassword,
   getProfile,
   getRecoveryQuestion,
+  handleStopRenewal,
   listPasswords,
   login,
   makePremium,
@@ -57,8 +58,12 @@ app.post("/api/make-premium", authMiddleware, makePremium);
 app.get("/api/me", authMiddleware, getProfile);
 app.post("/api/verify-master-password", authMiddleware, verifyMasterPassword);
 app.put("/api/update-password", authMiddleware, updateMasterPassword);
+
 app.post("/api/delete-account", authMiddleware, deleteAccount);
+app.post("/api/cancel-subscription", authMiddleware, handleStopRenewal);
+
 app.get("/api/check-subscription", authMiddleware, checkSubscription);
+
 app.post("/api/create-checkout-session", authMiddleware, createCheckoutSession);
 app.post("/api/billing/portal", authMiddleware, createPortalSession);
 

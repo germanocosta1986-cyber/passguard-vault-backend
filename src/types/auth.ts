@@ -23,3 +23,16 @@ export interface JWTPayload {
   iat: number;
   exp: number;
 }
+
+export interface Subscription {
+  id: string;
+  userId: string;
+  stripeSubscriptionId: string;
+  planType: "FREE" | "PRO";
+  billingCycle: "mensal" | "anual";
+  expiryDate: Date;
+  current_period_end: number; // Timestamp do Stripe
+  status: "Paga" | "Cancelada";
+  createdAt: Date;
+  updatedAt: Date;
+}
