@@ -1070,13 +1070,9 @@ export const createPortalSession = async (req: Request, res: Response) => {
 // No seu Controller de Versão
 export const getVersionResponse = async (req: Request, res: Response) => {
   try {
+    const platform = req.headers["x-platform"] || "android";
     const isDev = process.env.NODE_ENV !== "production";
 
-    // 📱 Detecta plataforma
-    const platformHeader = String(req.headers["x-platform"] || "android");
-    const platform = platformHeader === "ios" ? "ios" : "android";
-
-    // 🔧 Configuração por plataforma (via ENV)
     const config = {
       android: {
         latestVersion: process.env.ANDROID_LATEST_VERSION || "1.0.1",
@@ -1091,33 +1087,22 @@ export const getVersionResponse = async (req: Request, res: Response) => {
       },
     };
 
-    const selected = config[platform];
+    const selected = config[platform as "android" | "ios"] || config.android;
 
-    // 🧠 Force update inteligente
-    const forceUpdate =
-      !isDev &&
-      (process.env.FORCE_UPDATE === "true" ||
-        selected.minimumVersion === selected.latestVersion);
+    const latestVersion = selected.latestVersion;
+    const minimumVersion = isDev ? "1.0.0" : selected.minimumVersion;
 
-    const versionData = {
-      latestVersion: selected.latestVersion,
+    const forceUpdate = !isDev && process.env.FORCE_UPDATE === "true";
 
-      // 🔥 Em DEV nunca bloqueia
-      minimumVersion: isDev ? "1.0.0" : selected.minimumVersion,
-
+    return res.json({
+      latestVersion,
+      minimumVersion,
       forceUpdate,
-
-      // 🔥 Em DEV não retorna URL
+      hasOptionalUpdate: latestVersion !== minimumVersion, // 👈 NOVO
       storeUrl: isDev ? "" : selected.storeUrl,
-
-      changelog:
-        process.env.CHANGELOG ||
-        "Correções de bugs e melhorias de desempenho 🚀",
-    };
-
-    return res.json(versionData);
+      changelog: process.env.CHANGELOG || "Melhorias e correções 🚀",
+    });
   } catch (error) {
-    console.error("Erro version:", error);
     return res.status(500).json({ error: "Erro ao obter versão." });
   }
 };
