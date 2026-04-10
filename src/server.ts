@@ -65,7 +65,7 @@ app.put("/api/update-password", authMiddleware, updateMasterPassword);
 app.post("/api/delete-account", authMiddleware, deleteAccount);
 app.post("/api/cancel-subscription", authMiddleware, handleStopRenewal);
 app.post("/api/renew-subscription", authMiddleware, handleResumeRenewal); // Reativa a assinatura
-app.post("/api/get-version", getVersionResponse);
+app.get("/api/get-version", getVersionResponse);
 
 app.get("/api/check-subscription", authMiddleware, checkSubscription);
 

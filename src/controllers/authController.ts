@@ -1,3 +1,4 @@
+import { getVersion } from "./../types/auth";
 // /backend/src/controllers/authController.ts
 import { Request, Response } from "express";
 import { prisma } from "../lib/prisma"; // Aquela instância que criamos
@@ -1066,17 +1067,19 @@ export const createPortalSession = async (req: Request, res: Response) => {
   }
 };
 
+// No seu Controller de Versão
 export const getVersionResponse = async (req: Request, res: Response) => {
   try {
-    const version = process.env.VERSION || "1.0.0";
-    res.json({ getVersion: version });
-    console.log("Versão retornada com sucesso:", version);
+    // Aqui você define os dados baseados na sua Interface
+    const versionData: getVersion = {
+      latestVersion: process.env.LATEST_VERSION || "1.0.5",
+      minimumVersion: process.env.MIN_VERSION || "1.0.0",
+      forceUpdate: true, // Ou lógica baseada na comparação
+      storeUrl: "https://play.google.com/store/apps/details?id=seu.app",
+    };
+
+    return res.json(versionData);
   } catch (error) {
-    res.status(500).json({ error: "Erro ao obter versão." });
-  } finally {
-    console.log(
-      "Endpoint /version acessado. Versão retornada:",
-      process.env.VERSION,
-    );
+    return res.status(500).json({ error: "Erro ao obter versão." });
   }
 };
