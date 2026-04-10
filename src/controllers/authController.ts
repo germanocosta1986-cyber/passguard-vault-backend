@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import "dotenv/config";
 
 import Stripe from "stripe";
+import { get } from "node:http";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
   apiVersion: "2024-04-10" as any,
@@ -842,6 +843,53 @@ export const handleStopRenewal = async (req: any, res: any) => {
   }
 };
 
+//REATIVAÇÃO DE ASSINATURA
+export const handleResumeRenewal = async (req: any, res: any) => {
+  try {
+    const userId = req.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: "Não autorizado." });
+    }
+
+    const sub = await prisma.subscription.findUnique({
+      where: { userId: String(userId) },
+    });
+
+    if (!sub?.stripeSubscriptionId) {
+      return res.status(404).json({
+        error: "Assinatura não encontrada.",
+      });
+    }
+
+    // 🔥 REATIVA no Stripe
+    const stripeSub = (await stripe.subscriptions.update(
+      sub.stripeSubscriptionId,
+      {
+        cancel_at_period_end: false,
+      },
+    )) as unknown as Stripe.Subscription;
+
+    // 💾 Atualiza banco
+    await prisma.subscription.update({
+      where: { id: sub.id },
+      data: {
+        cancelAtPeriodEnd: false,
+        status: stripeSub.status,
+      },
+    });
+
+    return res.status(200).json({
+      message: "Renovação reativada com sucesso.",
+    });
+  } catch (error: any) {
+    console.error("Erro ao reativar:", error.message);
+    return res.status(500).json({
+      error: "Erro ao reativar assinatura.",
+    });
+  }
+};
+
 export const updateMasterPassword = async (req: Request, res: Response) => {
   try {
     const userId = req.userId;
@@ -1015,5 +1063,20 @@ export const createPortalSession = async (req: Request, res: Response) => {
     return res
       .status(500)
       .json({ error: "Erro interno ao gerar portal de faturamento." });
+  }
+};
+
+export const getVersionResponse = async (req: Request, res: Response) => {
+  try {
+    const version = process.env.VERSION || "1.0.0";
+    res.json({ getVersion: version });
+    console.log("Versão retornada com sucesso:", version);
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao obter versão." });
+  } finally {
+    console.log(
+      "Endpoint /version acessado. Versão retornada:",
+      process.env.VERSION,
+    );
   }
 };

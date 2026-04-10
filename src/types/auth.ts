@@ -36,3 +36,10 @@ export interface Subscription {
   createdAt: Date;
   updatedAt: Date;
 }
+
+export interface getVersion {
+  latestVersion: string;
+  minimumVersion: string;
+  forceUpdate: boolean;
+  storeUrl: string;
+}
