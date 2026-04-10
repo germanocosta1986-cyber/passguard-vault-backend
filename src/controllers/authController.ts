@@ -1,4 +1,4 @@
-import { getVersion } from "./../types/auth";
+import { AppVersionResponse } from "./../types/auth";
 // /backend/src/controllers/authController.ts
 import { Request, Response } from "express";
 import { prisma } from "../lib/prisma"; // Aquela instância que criamos
@@ -1070,16 +1070,54 @@ export const createPortalSession = async (req: Request, res: Response) => {
 // No seu Controller de Versão
 export const getVersionResponse = async (req: Request, res: Response) => {
   try {
-    // Aqui você define os dados baseados na sua Interface
-    const versionData: getVersion = {
-      latestVersion: process.env.LATEST_VERSION || "1.0.5",
-      minimumVersion: process.env.MIN_VERSION || "1.0.0",
-      forceUpdate: true, // Ou lógica baseada na comparação
-      storeUrl: "https://play.google.com/store/apps/details?id=seu.app",
+    const isDev = process.env.NODE_ENV !== "production";
+
+    // 📱 Detecta plataforma
+    const platformHeader = String(req.headers["x-platform"] || "android");
+    const platform = platformHeader === "ios" ? "ios" : "android";
+
+    // 🔧 Configuração por plataforma (via ENV)
+    const config = {
+      android: {
+        latestVersion: process.env.ANDROID_LATEST_VERSION || "1.0.1",
+        minimumVersion: process.env.ANDROID_MIN_VERSION || "1.0.0",
+        storeUrl:
+          "https://play.google.com/store/apps/details?id=com.silvadev.passguard",
+      },
+      ios: {
+        latestVersion: process.env.IOS_LATEST_VERSION || "1.0.1",
+        minimumVersion: process.env.IOS_MIN_VERSION || "1.0.0",
+        storeUrl: "https://apps.apple.com/app/idSEU_APP_ID",
+      },
+    };
+
+    const selected = config[platform];
+
+    // 🧠 Force update inteligente
+    const forceUpdate =
+      !isDev &&
+      (process.env.FORCE_UPDATE === "true" ||
+        selected.minimumVersion === selected.latestVersion);
+
+    const versionData = {
+      latestVersion: selected.latestVersion,
+
+      // 🔥 Em DEV nunca bloqueia
+      minimumVersion: isDev ? "1.0.0" : selected.minimumVersion,
+
+      forceUpdate,
+
+      // 🔥 Em DEV não retorna URL
+      storeUrl: isDev ? "" : selected.storeUrl,
+
+      changelog:
+        process.env.CHANGELOG ||
+        "Correções de bugs e melhorias de desempenho 🚀",
     };
 
     return res.json(versionData);
   } catch (error) {
+    console.error("Erro version:", error);
     return res.status(500).json({ error: "Erro ao obter versão." });
   }
 };

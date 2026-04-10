@@ -37,9 +37,10 @@ export interface Subscription {
   updatedAt: Date;
 }
 
-export interface getVersion {
+export interface AppVersionResponse {
   latestVersion: string;
   minimumVersion: string;
   forceUpdate: boolean;
   storeUrl: string;
+  changelog?: string;
 }
