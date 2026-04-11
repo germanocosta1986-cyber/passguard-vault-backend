@@ -11,6 +11,7 @@ import {
   debuguser,
   deleteAccount,
   deletePassword,
+  getHomeResponse,
   getProfile,
   getRecoveryQuestion,
   getVersionResponse,
@@ -44,7 +45,7 @@ app.use(express.json());
 
 // Rota de Teste
 app.get("/heath", (req, res) => res.send("Backend PassGuard Online! ✅"));
-app.get("/", (req, res) => res.send("Backend PassGuard Rodando! 🚀"));
+app.get("/", getHomeResponse);
 
 // Suas rotas de API (Mantenha como estão)
 app.get("/api/debug-users", debuguser);
