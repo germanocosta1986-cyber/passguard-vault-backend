@@ -1,4 +1,3 @@
-import { AppVersionResponse } from "./../types/auth";
 // /backend/src/controllers/authController.ts
 import { Request, Response } from "express";
 import { prisma } from "../lib/prisma"; // Aquela instância que criamos
@@ -61,11 +60,13 @@ export const getHomeResponse = (req: Request, res: Response) => {
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Backend PassGuard Rodando! 🚀</title>
-        <title>Passguard API | Status</title>
+        
 
         <style>
             body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f4f7f6; color: #333; }
+
             .card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; border-top: 5px solid #2ecc71; }
+
             h1 { color: #2c3e50; margin-bottom: 0.5rem; }
             .status { display: inline-block; padding: 5px 12px; border-radius: 20px; background: #e2f9eb; color: #2ecc71; font-weight: bold; font-size: 0.8rem; margin-bottom: 1rem; }
             .info { text-align: left; background: #f9f9f9; padding: 1rem; border-radius: 8px; font-size: 0.9rem; }
@@ -74,6 +75,7 @@ export const getHomeResponse = (req: Request, res: Response) => {
     </head>
     <body>
         <div class="card">
+            <title>Passguard API | Status</title>
             <h1>Passguard API 🔐</h1>
             <div class="status">● ONLINE</div>
             <p>O servidor está operando corretamente no Vercel.</p>
@@ -736,6 +738,7 @@ export const getProfile = async (req: any, res: Response) => {
         id: user.id,
         name: user.name,
         email: user.email,
+        createdAt: user.createdAt,
         isPremium: user.isPremium,
         premiumExpiryDate: premiumExpiry,
         recoveryQuestion: user.recoveryQuestion,
@@ -1109,49 +1112,6 @@ export const createPortalSession = async (req: Request, res: Response) => {
   }
 };
 
-// No seu Controller de Versão
-/* export const getVersionResponse = async (req: Request, res: Response) => {
-  try {
-    const platform = req.headers["x-platform"] || "android";
-    const isDev = process.env.NODE_ENV !== "production";
-
-    const config = {
-      android: {
-        latestVersion: process.env.ANDROID_LATEST_VERSION || "1.0.2",
-        minimumVersion: process.env.ANDROID_MIN_VERSION || "1.0.1",
-        storeUrl:
-          "https://play.google.com/store/apps/details?id=com.silvadev.passguard",
-      },
-      ios: {
-        latestVersion: process.env.IOS_LATEST_VERSION || "1.0.2",
-        minimumVersion: process.env.IOS_MIN_VERSION || "1.0.1",
-        storeUrl: "https://apps.apple.com/app/idSEU_APP_ID",
-      },
-    };
-
-    const selected = config[platform as "android" | "ios"] || config.android;
-
-    const latestVersion = selected.latestVersion;
-    const minimumVersion = isDev ? "1.0.1" : selected.minimumVersion;
-
-    const forceUpdate = !isDev && process.env.FORCE_UPDATE === "true";
-    const versionKey = selected.latestVersion.replace(/\./g, "_");
-    const changelog =
-      process.env[`CHANGELOG_${versionKey}`] ||
-      "Melhorias gerais de segurança🚀";
-
-    return res.json({
-      latestVersion,
-      minimumVersion,
-      forceUpdate,
-      hasOptionalUpdate: latestVersion !== minimumVersion, // 👈 NOVO
-      storeUrl: isDev ? "" : selected.storeUrl,
-      changelog: changelog,
-    });
-  } catch (error) {
-    return res.status(500).json({ error: "Erro ao obter versão." });
-  }
-}; */
 export const getVersionResponse = async (req: Request, res: Response) => {
   try {
     const platform = req.headers["x-platform"] || "android";
