@@ -1076,13 +1076,13 @@ export const getVersionResponse = async (req: Request, res: Response) => {
     const config = {
       android: {
         latestVersion: process.env.ANDROID_LATEST_VERSION || "1.0.2",
-        minimumVersion: process.env.ANDROID_MIN_VERSION || "1.0.0",
+        minimumVersion: process.env.ANDROID_MIN_VERSION || "1.0.1",
         storeUrl:
           "https://play.google.com/store/apps/details?id=com.silvadev.passguard",
       },
       ios: {
         latestVersion: process.env.IOS_LATEST_VERSION || "1.0.2",
-        minimumVersion: process.env.IOS_MIN_VERSION || "1.0.0",
+        minimumVersion: process.env.IOS_MIN_VERSION || "1.0.1",
         storeUrl: "https://apps.apple.com/app/idSEU_APP_ID",
       },
     };
@@ -1090,7 +1090,7 @@ export const getVersionResponse = async (req: Request, res: Response) => {
     const selected = config[platform as "android" | "ios"] || config.android;
 
     const latestVersion = selected.latestVersion;
-    const minimumVersion = isDev ? "1.0.0" : selected.minimumVersion;
+    const minimumVersion = isDev ? "1.0.1" : selected.minimumVersion;
 
     const forceUpdate = !isDev && process.env.FORCE_UPDATE === "true";
     const versionKey = selected.latestVersion.replace(/\./g, "_");
