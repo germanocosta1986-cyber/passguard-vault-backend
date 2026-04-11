@@ -1095,7 +1095,8 @@ export const getVersionResponse = async (req: Request, res: Response) => {
     const forceUpdate = !isDev && process.env.FORCE_UPDATE === "true";
     const versionKey = selected.latestVersion.replace(/\./g, "_");
     const changelog =
-      process.env[`CHANGELOG_${versionKey}`] || "Melhorias gerais 🚀";
+      process.env[`CHANGELOG_${versionKey}`] ||
+      "Melhorias gerais de segurança🚀";
 
     return res.json({
       latestVersion,
