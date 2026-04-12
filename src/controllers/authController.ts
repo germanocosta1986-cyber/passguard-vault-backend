@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import "dotenv/config";
 
 import Stripe from "stripe";
+import { AlertType, AppAlert } from "../types/auth";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
   apiVersion: "2024-04-10" as any,
@@ -1171,7 +1172,7 @@ export const PassguardAlert = async (req: Request, res: Response) => {
       include: { subscription: true },
     });
 
-    const alerts: any[] = [];
+    const alerts: AppAlert[] = [];
 
     // 🔐 Segurança
     if (!user?.recoveryQuestion) {
