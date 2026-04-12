@@ -1165,12 +1165,12 @@ export const getVersionResponse = async (req: Request, res: Response) => {
 //Dados de banner para enviar ao frontend
 export const PassguardAlert = async (req: Request, res: Response) => {
   try {
-    const userId = req.userId;
+    const user = req.body;
 
-    const user = await prisma.user.findUnique({
+    /* const user = await prisma.user.findUnique({
       where: { id: userId },
       include: { subscription: true },
-    });
+    }); */
 
     const alerts: AppAlert[] = [];
 
