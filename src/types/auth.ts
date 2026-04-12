@@ -45,15 +45,15 @@ export interface AppVersionResponse {
   changelog?: string;
 }
 
-export type AlertType = "SECURITY" | "TRIAL" | "UPDATE" | "INFO";
+export type AlertType = "SECURITY" | "TRIAL" | "UPDATE" | "FAQ";
+
+export type AlertPriority = "HIGH" | "MEDIUM" | "LOW";
 
 export interface AppAlert {
   id: string;
   type: AlertType;
   title: string;
   message: string;
-  actionLabel?: string;
-  action?: string; // rota ou ação
-  priority: "HIGH" | "MEDIUM" | "LOW";
-  expiresAt?: number;
+  action?: "GO_TO_RECOVERY" | "OPEN_BILLING" | "UPDATE_APP" | "OPEN_FAQ";
+  priority: AlertPriority;
 }

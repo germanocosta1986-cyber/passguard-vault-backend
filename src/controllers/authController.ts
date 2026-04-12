@@ -1174,30 +1174,61 @@ export const PassguardAlert = async (req: Request, res: Response) => {
 
     const alerts: AppAlert[] = [];
 
-    // 🔐 Segurança
+    // 🔐 SECURITY
     if (!user?.recoveryQuestion) {
       alerts.push({
         id: "security",
         type: "SECURITY",
         title: "Segurança em risco ⚠️",
-        message:
-          "Adicione uma pergunta de recuperação para proteger sua conta.",
+        message: "Adicione uma pergunta de recuperação.",
         action: "GO_TO_RECOVERY",
         priority: "HIGH",
       });
     }
 
-    // 🧪 Trial
-    if (user?.subscription?.status === "trialing") {
+    // 🧪 TRIAL (baseado em tempo - correto)
+    const trialEndsAt = Number(user?.subscription?.trialEndsAt);
+
+    if (trialEndsAt && trialEndsAt > Date.now()) {
       alerts.push({
         id: "trial",
         type: "TRIAL",
-        title: "Período de teste ativo",
+        title: "Período de teste ativo 🚀",
         message: "Aproveite os benefícios do plano PRO.",
         action: "OPEN_BILLING",
         priority: "MEDIUM",
       });
     }
+
+    // 🚀 UPDATE (controlado por versão)
+    const latestVersion = process.env.LATEST_VERSION || "1.0.2";
+    const clientVersion = req.headers["x-app-version"] as string;
+
+    if (clientVersion && clientVersion !== latestVersion) {
+      alerts.push({
+        id: "update",
+        type: "UPDATE",
+        title: "Nova versão disponível 🚀",
+        message: "Atualize o app para melhor performance.",
+        action: "UPDATE_APP",
+        priority: "LOW",
+      });
+    }
+
+    // 📘 FAQ (sempre disponível)
+    alerts.push({
+      id: "faq",
+      type: "FAQ",
+      title: "Central de Ajuda",
+      message: "Aprenda a usar o Passguard",
+      action: "OPEN_FAQ",
+      priority: "LOW",
+    });
+
+    // 🔥 ORDENA NO BACKEND (IMPORTANTE)
+    const priorityMap = { HIGH: 3, MEDIUM: 2, LOW: 1 };
+
+    alerts.sort((a, b) => priorityMap[b.priority] - priorityMap[a.priority]);
 
     return res.json({ alerts });
   } catch (error) {
