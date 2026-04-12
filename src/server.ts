@@ -69,7 +69,7 @@ app.post("/api/cancel-subscription", authMiddleware, handleStopRenewal);
 app.post("/api/renew-subscription", authMiddleware, handleResumeRenewal); // Reativa a assinatura
 
 app.get("/api/get-version", getVersionResponse); // atualização de app
-app.get("/api/alerts", PassguardAlert);
+app.get("/api/alerts", authMiddleware, PassguardAlert);
 
 app.get("/api/check-subscription", authMiddleware, checkSubscription);
 
