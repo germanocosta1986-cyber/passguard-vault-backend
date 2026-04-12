@@ -1160,3 +1160,46 @@ export const getVersionResponse = async (req: Request, res: Response) => {
     return res.status(500).json({ error: "Erro ao obter versão." });
   }
 };
+
+//Dados de banner para enviar ao frontend
+export const PassguardAlert = async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId;
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { subscription: true },
+    });
+
+    const alerts: any[] = [];
+
+    // 🔐 Segurança
+    if (!user?.recoveryQuestion) {
+      alerts.push({
+        id: "security",
+        type: "SECURITY",
+        title: "Segurança em risco ⚠️",
+        message:
+          "Adicione uma pergunta de recuperação para proteger sua conta.",
+        action: "GO_TO_RECOVERY",
+        priority: "HIGH",
+      });
+    }
+
+    // 🧪 Trial
+    if (user?.subscription?.status === "trialing") {
+      alerts.push({
+        id: "trial",
+        type: "TRIAL",
+        title: "Período de teste ativo",
+        message: "Aproveite os benefícios do plano PRO.",
+        action: "OPEN_BILLING",
+        priority: "MEDIUM",
+      });
+    }
+
+    return res.json({ alerts });
+  } catch (error) {
+    return res.status(500).json({ error: "Erro ao buscar alerts" });
+  }
+};

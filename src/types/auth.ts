@@ -44,3 +44,16 @@ export interface AppVersionResponse {
   storeUrl: string;
   changelog?: string;
 }
+
+export type AlertType = "SECURITY" | "TRIAL" | "UPDATE" | "INFO";
+
+export interface AppAlert {
+  id: string;
+  type: AlertType;
+  title: string;
+  message: string;
+  actionLabel?: string;
+  action?: string; // rota ou ação
+  priority: "HIGH" | "MEDIUM" | "LOW";
+  expiresAt?: number;
+}
