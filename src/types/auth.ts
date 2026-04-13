@@ -54,6 +54,8 @@ export interface AppAlert {
   type: AlertType;
   title: string;
   message: string;
+  actionLabel?: string;
   action?: "GO_TO_RECOVERY" | "OPEN_BILLING" | "UPDATE_APP" | "OPEN_FAQ";
-  priority: AlertPriority;
+  priority: "HIGH" | "MEDIUM" | "LOW";
+  expiresAt?: number;
 }
