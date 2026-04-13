@@ -1201,7 +1201,7 @@ export const PassguardAlert = async (req: Request, res: Response) => {
     }
 
     // 🚀 UPDATE (controlado por versão)
-    const latestVersion = process.env.LATEST_VERSION || "1.0.2";
+    const latestVersion = process.env.ANDROID_LATEST_VERSION || "1.0.2";
     const clientVersion = req.headers["x-app-version"] as string;
 
     if (clientVersion && clientVersion !== latestVersion) {
