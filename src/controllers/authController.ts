@@ -1228,6 +1228,7 @@ export const PassguardAlert = async (req: Request, res: Response) => {
       message: "Aprenda a usar o Passguard",
       action: "OPEN_FAQ",
       priority: "LOW",
+      expiresAt: null,
     });
 
     // Campanha PRO
