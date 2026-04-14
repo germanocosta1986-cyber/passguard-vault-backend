@@ -1244,7 +1244,7 @@ export const PassguardAlert = async (req: Request, res: Response) => {
       title: " Chama no Whatsapp",
       message: "Nossa equipe esta prepara para atender",
       actionLabel: "Não deixe sua dúvida para depois!",
-      action: "OPEN_COMPAIGN",
+      action: "OPEN_SUPPORTING",
       priority: "LOW",
       expiresAt: now + 100 * 60 * 60 * 1,
     });
