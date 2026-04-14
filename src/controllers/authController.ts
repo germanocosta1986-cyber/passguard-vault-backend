@@ -1225,6 +1225,27 @@ export const PassguardAlert = async (req: Request, res: Response) => {
       priority: "LOW",
     });
 
+    // Campanha PRO
+    if (!user?.isPremium) {
+      alerts.push({
+        id: "promo_pro",
+        type: "CAMPAIGN",
+        title: "🔥 50% OFF no PRO",
+        message: "Aproveite hoje e desbloqueie tudo.",
+        action: "OPEN_BILLING",
+        priority: "MEDIUM",
+      });
+    }
+
+    alerts.push({
+      id: "zap",
+      type: "CAMPAIGN",
+      title: "Chama no Whatsapp",
+      message: "Nossa equipe esta prepara para atender",
+      action: "OPEN_COMPAIGN",
+      priority: "LOW",
+    });
+
     // 🔥 ORDENA NO BACKEND (IMPORTANTE)
     const priorityMap = { HIGH: 3, MEDIUM: 2, LOW: 1 };
 
