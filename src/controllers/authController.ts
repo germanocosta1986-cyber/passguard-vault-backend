@@ -1175,10 +1175,6 @@ export const PassguardAlert = async (req: Request, res: Response) => {
     const now = Date.now();
     const alerts: AppAlert[] = [];
 
-    const validAlerts = alerts.filter(
-      (alert) => !alert.expiresAt || alert.expiresAt > now,
-    );
-
     // 🔐 SECURITY
     if (!user?.recoveryQuestion) {
       alerts.push({
@@ -1250,7 +1246,7 @@ export const PassguardAlert = async (req: Request, res: Response) => {
       actionLabel: "Não deixe sua dúvida para depois!",
       action: "OPEN_SUPPORTING",
       priority: "LOW",
-      expiresAt: now + 100 * 60 * 60 * 1,
+      expiresAt: now + 100 * 60 * 60 * 24,
     });
 
     // 🔥 ORDENA NO BACKEND (IMPORTANTE)
@@ -1258,7 +1254,27 @@ export const PassguardAlert = async (req: Request, res: Response) => {
 
     alerts.sort((a, b) => priorityMap[b.priority] - priorityMap[a.priority]);
 
-    return res.json({ alerts });
+    const validAlerts = alerts.filter((alert) => {
+      // ✅ sem expiresAt → passa
+      if (alert.expiresAt === undefined || alert.expiresAt === null) {
+        return true;
+      }
+
+      // 🔒 tenta converter
+      const expires = Number(alert.expiresAt);
+
+      // ❌ inválido → REMOVE (evita crash)
+      if (isNaN(expires)) {
+        console.warn("⚠️ ALERT COM expiresAt INVÁLIDO:", alert);
+        return false;
+      }
+
+      // ✅ válido
+      return expires > now;
+    });
+    console.log(validAlerts);
+
+    return res.json({ alerts: validAlerts });
   } catch (error) {
     return res.status(500).json({ error: "Erro ao buscar alerts" });
   }
