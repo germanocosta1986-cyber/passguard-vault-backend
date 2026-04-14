@@ -1175,6 +1175,10 @@ export const PassguardAlert = async (req: Request, res: Response) => {
     const now = Date.now();
     const alerts: AppAlert[] = [];
 
+    const validAlerts = alerts.filter(
+      (alert) => !alert.expiresAt || alert.expiresAt > now,
+    );
+
     // 🔐 SECURITY
     if (!user?.recoveryQuestion) {
       alerts.push({
@@ -1254,7 +1258,7 @@ export const PassguardAlert = async (req: Request, res: Response) => {
 
     alerts.sort((a, b) => priorityMap[b.priority] - priorityMap[a.priority]);
 
-    return res.json({ alerts });
+    return res.json({ alerts: validAlerts });
   } catch (error) {
     return res.status(500).json({ error: "Erro ao buscar alerts" });
   }
