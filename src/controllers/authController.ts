@@ -1228,7 +1228,6 @@ export const PassguardAlert = async (req: Request, res: Response) => {
       message: "Aprenda a usar o Passguard",
       action: "OPEN_FAQ",
       priority: "LOW",
-      expiresAt: null,
     });
 
     // Campanha PRO
@@ -1259,7 +1258,7 @@ export const PassguardAlert = async (req: Request, res: Response) => {
 
     alerts.sort((a, b) => priorityMap[b.priority] - priorityMap[a.priority]);
 
-    return res.json({ alerts: validAlerts });
+    return res.json({ alerts });
   } catch (error) {
     return res.status(500).json({ error: "Erro ao buscar alerts" });
   }
