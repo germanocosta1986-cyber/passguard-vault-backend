@@ -1172,6 +1172,7 @@ export const PassguardAlert = async (req: Request, res: Response) => {
       include: { subscription: true },
     });
 
+    const now = Date.now();
     const alerts: AppAlert[] = [];
 
     // 🔐 SECURITY
@@ -1240,10 +1241,12 @@ export const PassguardAlert = async (req: Request, res: Response) => {
     alerts.push({
       id: "zap",
       type: "CAMPAIGN",
-      title: "Chama no Whatsapp",
+      title: " Chama no Whatsapp",
       message: "Nossa equipe esta prepara para atender",
+      actionLabel: "Não deixe sua dúvida para depois!",
       action: "OPEN_COMPAIGN",
       priority: "LOW",
+      expiresAt: now + 100 * 60 * 60 * 1,
     });
 
     // 🔥 ORDENA NO BACKEND (IMPORTANTE)
