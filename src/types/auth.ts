@@ -66,7 +66,8 @@ export interface AppAlert {
     | "OPEN_BILLING"
     | "UPDATE_APP"
     | "OPEN_FAQ"
-    | "OPEN_COMPAIGN";
+    | "OPEN_COMPAIGN"
+    | "OPEN_SUPPORTING";
   priority: "HIGH" | "MEDIUM" | "LOW";
   expiresAt?: number;
 }
