@@ -51,7 +51,8 @@ export type AlertType =
   | "UPDATE"
   | "FAQ"
   | "CAMPAIGN"
-  | "INFO";
+  | "INFO"
+  | "DESCOUNT";
 
 export type AlertPriority = "HIGH" | "MEDIUM" | "LOW";
 

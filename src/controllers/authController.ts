@@ -1235,10 +1235,9 @@ export const PassguardAlert = async (req: Request, res: Response) => {
     if (isEligibleForPromo) {
       alerts.push({
         id: "promo_discount_20",
-        type: "CAMPAIGN",
+        type: "DESCOUNT",
         title: "🎁 Presente para você!",
-        message:
-          "Use o cupom PASSGUARD20 e ganhe 20% de desconto na sua assinatura PRO.",
+        message: "Ganhe 20% de desconto extra no plano ANUAL! Use: QUERO20.",
         action: "OPEN_DESCOUNT",
         actionLabel: "Resgatar Desconto",
         priority: "HIGH",
