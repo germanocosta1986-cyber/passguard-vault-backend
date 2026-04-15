@@ -61,6 +61,8 @@ export interface AppAlert {
   type: AlertType;
   title: string;
   message: string;
+  icon?: any; // Nome do ícone (MaterialIcons)
+  color?: string; // Cor principal (ex: "#8b5cf6")
   actionLabel?: string;
   action?:
     | "GO_TO_RECOVERY"

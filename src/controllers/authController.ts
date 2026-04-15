@@ -1184,9 +1184,13 @@ export const PassguardAlert = async (req: Request, res: Response) => {
       alerts.push({
         id: "security",
         type: "SECURITY",
-        title: "Segurança em risco ⚠️",
-        message: "Adicione uma pergunta de recuperação.",
+        title: "Segurança ⚠️",
+        message:
+          "Seu cofre está vulnerável. Configure sua pergunta de recuperação.",
         action: "GO_TO_RECOVERY",
+        actionLabel: "CONFIGURAR AGORA",
+        icon: "gpp-maybe",
+        color: "#ef4444", // Vermelho
         priority: "HIGH",
       });
     }
@@ -1234,14 +1238,15 @@ export const PassguardAlert = async (req: Request, res: Response) => {
     // Campanha PRO
     if (isEligibleForPromo) {
       alerts.push({
-        id: "promo_discount_20",
-        type: "DESCOUNT",
-        title: "🎁 Presente para você!",
-        message: "Ganhe 20% de desconto extra no plano ANUAL! Use: QUERO20.",
+        id: "promo_anual",
+        type: "CAMPAIGN",
+        title: "Oferta Exclusiva 🎁",
+        message: "Ganhe 20% de desconto no plano ANUAL com o cupom QUERO20.",
         action: "OPEN_DESCOUNT",
-        actionLabel: "Resgatar Desconto",
+        actionLabel: "RESGATAR DESCONTO",
+        icon: "local-offer", // Nome do ícone do MaterialIcons
+        color: "#8b5cf6", // Roxo Violeta
         priority: "HIGH",
-        // Importante: dar um senso de urgência (expira em 48h)
         expiresAt: now + 48 * 60 * 60 * 1000,
       });
     }
