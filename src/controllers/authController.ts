@@ -1239,7 +1239,7 @@ export const PassguardAlert = async (req: Request, res: Response) => {
         title: "🎁 Presente para você!",
         message:
           "Use o cupom PASSGUARD20 e ganhe 20% de desconto na sua assinatura PRO.",
-        action: "OPEN_BILLING",
+        action: "OPEN_DESCOUNT",
         actionLabel: "Resgatar Desconto",
         priority: "HIGH",
         // Importante: dar um senso de urgência (expira em 48h)

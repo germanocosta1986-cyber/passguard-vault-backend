@@ -64,6 +64,7 @@ export interface AppAlert {
   action?:
     | "GO_TO_RECOVERY"
     | "OPEN_BILLING"
+    | "OPEN_DESCOUNT"
     | "UPDATE_APP"
     | "OPEN_FAQ"
     | "OPEN_COMPAIGN"
