@@ -1172,6 +1172,8 @@ export const PassguardAlert = async (req: Request, res: Response) => {
       include: { subscription: true },
     });
 
+    // 🧠 calcular dias do trial
+
     const now = Date.now();
     const alerts: AppAlert[] = [];
 
@@ -1196,21 +1198,28 @@ export const PassguardAlert = async (req: Request, res: Response) => {
     }
 
     // 🧪 TRIAL (baseado em tempo - correto)
+    // 🧪 TRIAL (Calculado no Backend)
     const trialEndsAt = Number(user?.subscription?.trialEndsAt);
 
-    if (trialEndsAt && trialEndsAt > Date.now()) {
+    if (trialEndsAt && trialEndsAt > now) {
+      const diffTime = Math.abs(trialEndsAt - now);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); // Converte ms para dias
+
       alerts.push({
         id: "trial",
         type: "TRIAL",
-        title: "Período de teste ativo 🚀",
-        message: "Aproveite os benefícios do plano PRO.",
+        title: "Período de Teste 🚀",
+        message: `Você tem mais ${diffDays} ${diffDays === 1 ? "dia" : "dias"} de acesso PRO. Aproveite todos os recursos!`,
         action: "OPEN_BILLING",
+        actionLabel: "VER PLANOS",
+        icon: "bolt", // Ícone de raio/energia
+        color: "#f59e0b", // Âmbar/Laranja
         priority: "MEDIUM",
         expiresAt: trialEndsAt,
       });
     }
 
-    // 🚀 UPDATE (controlado por versão)
+    // 🚀 UPDATE (Controlado por versão)
     const latestVersion = process.env.ANDROID_LATEST_VERSION || "1.0.2";
     const clientVersion = req.headers["x-app-version"] as string;
 
@@ -1218,9 +1227,12 @@ export const PassguardAlert = async (req: Request, res: Response) => {
       alerts.push({
         id: "update",
         type: "UPDATE",
-        title: "Nova versão disponível 🚀",
-        message: "Atualize o app para melhor performance.",
+        title: "Atualização Disponível 🚀",
+        message: `A versão ${latestVersion} já está disponível com melhorias e correções de segurança.`,
         action: "UPDATE_APP",
+        actionLabel: "ATUALIZAR AGORA",
+        icon: "system-update", // Ícone de atualização
+        color: "#06b6d4", // Ciano (destaque de tecnologia)
         priority: "LOW",
       });
     }
