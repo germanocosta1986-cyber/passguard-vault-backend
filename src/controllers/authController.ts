@@ -1175,6 +1175,10 @@ export const PassguardAlert = async (req: Request, res: Response) => {
     const now = Date.now();
     const alerts: AppAlert[] = [];
 
+    const isEligibleForPromo =
+      !user?.isPremium &&
+      now - new Date(user.createdAt).getTime() > 7 * 24 * 60 * 60 * 1000;
+
     // 🔐 SECURITY
     if (!user?.recoveryQuestion) {
       alerts.push({
@@ -1198,6 +1202,7 @@ export const PassguardAlert = async (req: Request, res: Response) => {
         message: "Aproveite os benefícios do plano PRO.",
         action: "OPEN_BILLING",
         priority: "MEDIUM",
+        expiresAt: trialEndsAt,
       });
     }
 
@@ -1227,27 +1232,20 @@ export const PassguardAlert = async (req: Request, res: Response) => {
     });
 
     // Campanha PRO
-    if (!user?.isPremium) {
+    if (isEligibleForPromo) {
       alerts.push({
-        id: "promo_pro",
+        id: "promo_discount_20",
         type: "CAMPAIGN",
-        title: "🔥 50% OFF no PRO",
-        message: "Aproveite hoje e desbloqueie tudo.",
+        title: "🎁 Presente para você!",
+        message:
+          "Use o cupom PASSGUARD20 e ganhe 20% de desconto na sua assinatura PRO.",
         action: "OPEN_BILLING",
-        priority: "MEDIUM",
+        actionLabel: "Resgatar Desconto",
+        priority: "HIGH",
+        // Importante: dar um senso de urgência (expira em 48h)
+        expiresAt: now + 48 * 60 * 60 * 1000,
       });
     }
-
-    alerts.push({
-      id: "zap",
-      type: "CAMPAIGN",
-      title: " Chama no Whatsapp",
-      message: "Nossa equipe esta prepara para atender",
-      actionLabel: "Não deixe sua dúvida para depois!",
-      action: "OPEN_SUPPORTING",
-      priority: "LOW",
-      expiresAt: now + 100 * 60 * 60 * 24,
-    });
 
     // 🔥 ORDENA NO BACKEND (IMPORTANTE)
     const priorityMap = { HIGH: 3, MEDIUM: 2, LOW: 1 };
