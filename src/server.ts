@@ -4,13 +4,17 @@ import express from "express";
 import cors from "cors";
 // 1. Removido o .js e corrigido o caminho relativo
 import {
+  AlertsDynamic,
   checkSubscription,
+  CreateCampaign,
   createCheckoutSession,
   createPassword,
   createPortalSession,
   debuguser,
   deleteAccount,
+  DeleteCampaign,
   deletePassword,
+  GetAllCampaignsAdmin,
   getHomeResponse,
   getProfile,
   getRecoveryQuestion,
@@ -30,10 +34,11 @@ import {
   webhookStripe,
 } from "./controllers/authController";
 import { authMiddleware } from "./middlewares/authMiddleware";
+import { adminAuth } from "./middlewares/adminAuth";
 
 const app = express();
 
-app.use(cors());
+app.use(cors({ origin: "http://localhost:3001" }));
 
 // ROTA DO WEBHOOK (Mantida antes do express.json)
 app.post(
@@ -75,6 +80,12 @@ app.get("/api/check-subscription", authMiddleware, checkSubscription);
 
 app.post("/api/create-checkout-session", authMiddleware, createCheckoutSession);
 app.post("/api/billing/portal", authMiddleware, createPortalSession);
+
+//rota campaigns
+app.get("/api/alerts/campaigns", authMiddleware, AlertsDynamic);
+app.get("/api/admin/campaigns", adminAuth, GetAllCampaignsAdmin);
+app.post("/api/campaigns", adminAuth, CreateCampaign);
+app.delete("/api/campaigns/:id", DeleteCampaign);
 
 // 2. IMPORTANTE: Envolva o listen em um condicional
 // Isso evita que a Vercel tente abrir portas desnecessárias

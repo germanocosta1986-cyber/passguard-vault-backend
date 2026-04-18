@@ -738,6 +738,8 @@ export const getProfile = async (req: any, res: Response) => {
       user: {
         id: user.id,
         name: user.name,
+        birthYear: user.birthYear,
+        masterPassword: user.masterPassword,
         email: user.email,
         createdAt: user.createdAt,
         isPremium: user.isPremium,
@@ -1291,5 +1293,133 @@ export const PassguardAlert = async (req: Request, res: Response) => {
     return res.json({ alerts: validAlerts });
   } catch (error) {
     return res.status(500).json({ error: "Erro ao buscar alerts" });
+  }
+};
+
+export const CreateCampaign = async (req: Request, res: Response) => {
+  try {
+    const {
+      type,
+      priority,
+      action,
+      title,
+      message,
+      actionLabel,
+      actionValue,
+      color,
+      icon,
+      targetAudience,
+    } = req.body;
+
+    // Validação rigorosa para não quebrar o carrossel do App
+    if (!title || !message || !type || !priority || !action) {
+      return res.status(400).json({
+        error:
+          "Campos obrigatórios ausentes: Título, Mensagem, Tipo, Ação e Prioridade.",
+      });
+    }
+
+    const campaign = await prisma.campaign.create({
+      data: {
+        type, // Ex: "SECURITY", "DESCOUNT"
+        priority, // Ex: "HIGH", "LOW"
+        action, // Ex: "OPEN_BILLING"
+        title: title.toUpperCase(),
+        message,
+        actionLabel: actionLabel || "VER DETALHES",
+        actionValue: actionValue || "", // URL ou Rota
+        color: color || "#8b5cf6",
+        icon: icon || "info",
+        targetAudience: targetAudience || "ALL",
+        isActive: true,
+        startsAt: new Date(), // Começa imediatamente
+        expiresAt: req.body.expiresAt ? new Date(req.body.expiresAt) : null,
+      },
+    });
+
+    return res.status(201).json(campaign);
+  } catch (error) {
+    console.error("Erro Prisma:", error);
+    return res.status(500).json({ error: "Erro ao salvar no banco de dados." });
+  }
+};
+
+export const AlertsDynamic = async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId;
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { isPremium: true },
+    });
+
+    if (!user)
+      return res.status(404).json({ message: "Usuário não encontrado" });
+
+    const now = new Date();
+
+    const campaigns = await prisma.campaign.findMany({
+      where: {
+        isActive: true,
+        startsAt: { lte: now },
+        OR: [{ expiresAt: null }, { expiresAt: { gte: now } }],
+        targetAudience: {
+          in: ["ALL", user.isPremium ? "PRO" : "FREE"],
+        },
+      },
+      // Note: Se priority for string, a ordenação 'asc' fará: HIGH, LOW, MEDIUM.
+      // Geralmente ordenamos por createdAt ou tratamos a prioridade no App.
+      orderBy: { createdAt: "desc" },
+    });
+
+    const formattedAlerts = campaigns.map((camp) => ({
+      id: camp.id,
+      type: camp.type,
+      title: camp.title,
+      message: camp.message,
+      icon: camp.icon,
+      color: camp.color,
+      action: camp.action,
+      actionLabel: camp.actionLabel,
+      actionValue: camp.actionValue,
+      priority: camp.priority, // Fundamental enviar para o App saber o peso visual
+      expiresAt: camp.expiresAt ? camp.expiresAt.getTime() : null,
+    }));
+
+    return res.json(formattedAlerts);
+  } catch (error) {
+    return res.status(500).json({ error: "Erro ao buscar alertas dinâmicos." });
+  }
+};
+
+export const GetAllCampaignsAdmin = async (req: Request, res: Response) => {
+  try {
+    // Admin vê tudo: ativos, inativos, PRO, FREE, expirados...
+    const campaigns = await prisma.campaign.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+
+    const formatted = campaigns.map((camp) => ({
+      ...camp,
+      expiresAt: camp.expiresAt ? camp.expiresAt.getTime() : null,
+    }));
+
+    return res.json(formatted);
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ error: "Erro ao listar campanhas para o admin." });
+  }
+};
+
+export const DeleteCampaign = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  try {
+    await prisma.campaign.delete({ where: { id: String(id) } });
+    return res.status(204).send();
+  } catch (error) {
+    return res
+      .status(400)
+      .json({ error: "Erro ao deletar campanha ou ID inexistente." });
   }
 };

@@ -56,22 +56,30 @@ export type AlertType =
 
 export type AlertPriority = "HIGH" | "MEDIUM" | "LOW";
 
+export type AlertAction =
+  | "GO_TO_RECOVERY"
+  | "OPEN_BILLING"
+  | "OPEN_DESCOUNT"
+  | "UPDATE_APP"
+  | "OPEN_FAQ"
+  | "OPEN_COMPAIGN"
+  | "OPEN_SUPPORTING"
+  | "SEM_ACTION";
+
+export type AlertTarget = "ALL" | "FREE" | "PRO";
 export interface AppAlert {
   id: string;
-  type: AlertType;
   title: string;
   message: string;
-  icon?: any; // Nome do ícone (MaterialIcons)
-  color?: string; // Cor principal (ex: "#8b5cf6")
+  type: AlertType;
+  priority: AlertPriority;
+  color?: string;
+  icon?: string;
+  hasAction?: boolean;
+  action?: AlertAction;
   actionLabel?: string;
-  action?:
-    | "GO_TO_RECOVERY"
-    | "OPEN_BILLING"
-    | "OPEN_DESCOUNT"
-    | "UPDATE_APP"
-    | "OPEN_FAQ"
-    | "OPEN_COMPAIGN"
-    | "OPEN_SUPPORTING";
-  priority: "HIGH" | "MEDIUM" | "LOW";
+  actionValue?: string;
+
+  targetAudience?: AlertTarget;
   expiresAt?: number;
 }

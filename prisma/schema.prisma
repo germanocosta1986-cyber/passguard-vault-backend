@@ -107,3 +107,31 @@ model ActivityLog {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
+
+//campaign
+model Campaign {
+  id             String    @id @default(uuid())
+  title          String
+  message        String
+  // Usando String no Prisma para flexibilidade, mas validaremos no código
+  type           String    @default("INFO") 
+  
+  icon           String?   @default("info")
+  color          String?   @default("#8b5cf6")
+  
+  action         String?   @default("OPEN_SUPPORTING")
+  actionLabel    String?   @default("SAIBA MAIS")
+  actionValue    String?   // URL ou parâmetro extra se necessário
+
+  priority       String    @default("LOW") // HIGH, MEDIUM, LOW
+  targetAudience String    @default("ALL") 
+  
+  isActive       Boolean   @default(true)
+  startsAt       DateTime  @default(now())
+  expiresAt      DateTime? 
+  
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@map("campaigns")
+}
