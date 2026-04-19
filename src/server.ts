@@ -21,6 +21,7 @@ import {
   getVersionResponse,
   handleResumeRenewal,
   handleStopRenewal,
+  listAllCampaigns,
   listPasswords,
   login,
   makePremium,
@@ -84,6 +85,7 @@ app.post("/api/billing/portal", authMiddleware, createPortalSession);
 //rota campaigns
 app.get("/api/alerts/campaigns", authMiddleware, AlertsDynamic);
 app.get("/api/admin/campaigns", adminAuth, GetAllCampaignsAdmin);
+app.get("/api/admin/campaigns/status", adminAuth, listAllCampaigns);
 //app.post("/api/admin/campaigns", adminAuth, GetAllCampaignsAdmin);
 app.post("/api/campaigns", adminAuth, CreateCampaign);
 app.delete("/api/campaigns/:id", DeleteCampaign);

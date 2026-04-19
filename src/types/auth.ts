@@ -79,7 +79,6 @@ export interface AppAlert {
   action?: AlertAction;
   actionLabel?: string;
   actionValue?: string;
-
   targetAudience?: AlertTarget;
   expiresAt?: number;
 }

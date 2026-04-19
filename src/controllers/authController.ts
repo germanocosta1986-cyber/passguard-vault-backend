@@ -1398,11 +1398,11 @@ export const GetAllCampaignsAdmin = async (req: Request, res: Response) => {
     const campaigns = await prisma.campaign.findMany({
       orderBy: { createdAt: "desc" },
     });
-
     const formatted = campaigns.map((camp) => ({
       ...camp,
       expiresAt: camp.expiresAt ? camp.expiresAt.getTime() : null,
     }));
+    console.log(campaigns, formatted);
 
     return res.json(formatted);
   } catch (error) {
@@ -1410,6 +1410,32 @@ export const GetAllCampaignsAdmin = async (req: Request, res: Response) => {
       .status(500)
       .json({ error: "Erro ao listar campanhas para o admin." });
   }
+};
+
+export const listAllCampaigns = async (req: Request, res: Response) => {
+  const campaigns = await prisma.campaign.findMany({
+    orderBy: { createdAt: "desc" },
+  });
+
+  const now = new Date();
+
+  const formatted = campaigns.map((c) => {
+    let status = "ACTIVE";
+
+    if (!c.isActive) {
+      status = "PAUSED";
+    } else if (c.expiresAt && new Date(c.expiresAt) < now) {
+      status = "EXPIRED";
+    } else if (new Date(c.startsAt) > now) {
+      status = "SCHEDULED";
+    } else {
+      status = "LIVE";
+    }
+
+    return { ...c, status };
+  });
+
+  return res.json(formatted);
 };
 
 export const DeleteCampaign = async (req: Request, res: Response) => {
