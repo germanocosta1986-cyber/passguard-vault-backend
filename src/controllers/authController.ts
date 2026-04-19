@@ -1417,16 +1417,21 @@ export const listAllCampaigns = async (req: Request, res: Response) => {
     orderBy: { createdAt: "desc" },
   });
 
-  const now = new Date();
+  const now = Date.now(); // Retorna o timestamp em número (milissegundos)
 
   const formatted = campaigns.map((c) => {
     let status = "ACTIVE";
 
+    // Convertemos os campos do banco para número (getTime) para garantir a comparação
+    const expireTime = c.expiresAt ? new Date(c.expiresAt).getTime() : null;
+    const startTime = new Date(c.startsAt).getTime();
+
     if (!c.isActive) {
       status = "PAUSED";
-    } else if (c.expiresAt && new Date(c.expiresAt) < now) {
+    } else if (expireTime && expireTime < now) {
+      // Comparação de Número vs Número (Seguro e rápido)
       status = "EXPIRED";
-    } else if (new Date(c.startsAt) > now) {
+    } else if (startTime > now) {
       status = "SCHEDULED";
     } else {
       status = "LIVE";

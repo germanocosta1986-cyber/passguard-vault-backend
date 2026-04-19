@@ -84,4 +84,5 @@ export interface AppAlert {
   targetAudience?: AlertTarget;
   expiresAt?: number;
   status?: AlertStatus;
+  isActive?: boolean;
 }
