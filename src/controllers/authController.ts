@@ -1518,3 +1518,32 @@ export const DeleteCampaign = async (req: Request, res: Response) => {
       .json({ error: "Erro ao deletar campanha ou ID inexistente." });
   }
 };
+
+export const listAllUsers = async (req: Request, res: Response) => {
+  console.log("[BACKEND] Tentando buscar lista de usuários...");
+
+  try {
+    const users = await prisma.user.findMany({
+      // Remova o select temporariamente se suspeitar que algum campo está errado
+      include: {
+        subscription: true, // Garante que traga a relação
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    console.log(`[BACKEND] Sucesso! Encontrados ${users.length} usuários.`);
+
+    // Se o array vier vazio, o problema pode ser no banco/conexão
+    if (!users || users.length === 0) {
+      console.warn("[BACKEND] Aviso: O banco retornou um array vazio.");
+    }
+
+    return res.status(200).json(users);
+  } catch (error: any) {
+    console.error("[BACKEND] Erro Crítico no Prisma:", error.message);
+    return res.status(500).json({
+      error: "Erro interno ao buscar usuários",
+      details: error.message,
+    });
+  }
+};

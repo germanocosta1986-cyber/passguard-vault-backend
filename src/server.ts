@@ -91,7 +91,7 @@ app.patch("/api/admin/campaigns/status", adminAuth, listAllCampaigns);
 app.post("/api/campaigns", adminAuth, CreateCampaign);
 app.delete("/api/campaigns/:id", DeleteCampaign);
 
-app.get("/api/listAll-users", adminAuth, listAllUsers);
+app.get("/api/admin/users", adminAuth, listAllUsers);
 
 // 2. IMPORTANTE: Envolva o listen em um condicional
 // Isso evita que a Vercel tente abrir portas desnecessárias
