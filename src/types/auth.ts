@@ -67,6 +67,8 @@ export type AlertAction =
   | "SEM_ACTION";
 
 export type AlertTarget = "ALL" | "FREE" | "PRO";
+
+export type AlertStatus = "LIVE" | "SCHEDULED" | "EXPIRED" | "PAUSED";
 export interface AppAlert {
   id: string;
   title: string;
@@ -81,4 +83,5 @@ export interface AppAlert {
   actionValue?: string;
   targetAudience?: AlertTarget;
   expiresAt?: number;
+  status?: AlertStatus;
 }
