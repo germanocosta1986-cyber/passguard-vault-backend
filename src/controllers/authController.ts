@@ -1348,16 +1348,29 @@ export const AlertsDynamic = async (req: Request, res: Response) => {
   try {
     const userId = req.userId;
 
+    // 1. Buscamos o usuário com os campos necessários e a relação de subscription
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { isPremium: true },
+      select: {
+        id: true,
+        isPremium: true,
+        recoveryQuestion: true,
+        subscription: {
+          select: {
+            trialEndsAt: true,
+            status: true,
+          },
+        },
+      },
     });
 
     if (!user)
       return res.status(404).json({ message: "Usuário não encontrado" });
 
     const now = new Date();
+    const nowTimestamp = now.getTime();
 
+    // 2. Buscamos as campanhas ativas do ecossistema SaaS
     const campaigns = await prisma.campaign.findMany({
       where: {
         isActive: true,
@@ -1367,14 +1380,53 @@ export const AlertsDynamic = async (req: Request, res: Response) => {
           in: ["ALL", user.isPremium ? "PRO" : "FREE"],
         },
       },
-      // Note: Se priority for string, a ordenação 'asc' fará: HIGH, LOW, MEDIUM.
-      // Geralmente ordenamos por createdAt ou tratamos a prioridade no App.
       orderBy: { createdAt: "desc" },
     });
 
-    const formattedAlerts = campaigns.map((camp) => ({
+    // 3. Criamos a lista de alertas sistêmicos (Segurança, Trial, etc)
+    const systemAlerts: any[] = [];
+
+    // 🔐 ALERTA DE SEGURANÇA
+    if (!user.recoveryQuestion) {
+      systemAlerts.push({
+        id: "security-fix",
+        type: "SECURITY",
+        title: "Cofre Vulnerável ⚠️",
+        message:
+          "Configure sua pergunta de recuperação para não perder o acesso.",
+        icon: "gpp-maybe",
+        color: "#ef4444",
+        action: "GO_TO_RECOVERY",
+        actionLabel: "CONFIGURAR",
+        priority: "HIGH",
+        expiresAt: null,
+      });
+    }
+
+    // 🚀 ALERTA DE TRIAL (Dinâmico)
+    const trialDate = user.subscription?.trialEndsAt;
+    if (!user.isPremium && trialDate && new Date(trialDate) > now) {
+      const diffTime = new Date(trialDate).getTime() - nowTimestamp;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      systemAlerts.push({
+        id: "trial-info",
+        type: "TRIAL",
+        title: "Período Pro 🚀",
+        message: `Você tem mais ${diffDays} ${diffDays === 1 ? "dia" : "dias"} de recursos liberados.`,
+        icon: "bolt",
+        color: "#f59e0b",
+        action: "OPEN_PLANS",
+        actionLabel: "VER PLANOS",
+        priority: "MEDIUM",
+        expiresAt: new Date(trialDate).getTime(),
+      });
+    }
+
+    // 4. Formatamos as campanhas vindas do Dashboard
+    const formattedCampaigns = campaigns.map((camp) => ({
       id: camp.id,
-      type: camp.type,
+      type: camp.type, // Aqui virá "DESCOUNT", "INFO", etc.
       title: camp.title,
       message: camp.message,
       icon: camp.icon,
@@ -1382,12 +1434,23 @@ export const AlertsDynamic = async (req: Request, res: Response) => {
       action: camp.action,
       actionLabel: camp.actionLabel,
       actionValue: camp.actionValue,
-      priority: camp.priority, // Fundamental enviar para o App saber o peso visual
+      priority: camp.priority,
       expiresAt: camp.expiresAt ? camp.expiresAt.getTime() : null,
     }));
 
-    return res.json(formattedAlerts);
+    // 5. Unificamos tudo em uma única lista para o App
+    const allAlerts = [...systemAlerts, ...formattedCampaigns];
+
+    // Ordenação final por prioridade (HIGH > MEDIUM > LOW)
+    const priorityScore: any = { HIGH: 3, MEDIUM: 2, LOW: 1 };
+    allAlerts.sort(
+      (a, b) =>
+        (priorityScore[b.priority] || 0) - (priorityScore[a.priority] || 0),
+    );
+
+    return res.json(allAlerts);
   } catch (error) {
+    console.error("Erro AlertsDynamic:", error);
     return res.status(500).json({ error: "Erro ao buscar alertas dinâmicos." });
   }
 };
@@ -1412,6 +1475,7 @@ export const GetAllCampaignsAdmin = async (req: Request, res: Response) => {
   }
 };
 
+//ROTA PATCH PARA LISTAR E REUTILIZAR CAMPANHAS
 export const listAllCampaigns = async (req: Request, res: Response) => {
   const campaigns = await prisma.campaign.findMany({
     orderBy: { createdAt: "desc" },
