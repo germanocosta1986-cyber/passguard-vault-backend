@@ -5,8 +5,6 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import "dotenv/config";
 
-import { Expo, ExpoPushMessage } from "expo-server-sdk";
-const expo = new Expo();
 import Stripe from "stripe";
 import { AlertType, AppAlert } from "../types/auth";
 
@@ -1557,7 +1555,9 @@ export const sendExpoPush = async (
   title: string,
   message: string,
 ) => {
-  let messages: ExpoPushMessage[] = [];
+  const { Expo } = await import("expo-server-sdk");
+  const expo = new Expo();
+  let messages = [];
 
   for (let pushToken of tokens) {
     // Valida se o token é um token Expo válido antes de tentar enviar
