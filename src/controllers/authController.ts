@@ -5,6 +5,8 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import "dotenv/config";
 
+import { Expo, ExpoPushMessage } from "expo-server-sdk";
+const expo = new Expo();
 import Stripe from "stripe";
 import { AlertType, AppAlert } from "../types/auth";
 
@@ -1545,5 +1547,119 @@ export const listAllUsers = async (req: Request, res: Response) => {
       error: "Erro interno ao buscar usuários",
       details: error.message,
     });
+  }
+};
+
+//notifications
+
+export const sendExpoPush = async (
+  tokens: string[],
+  title: string,
+  message: string,
+) => {
+  let messages: ExpoPushMessage[] = [];
+
+  for (let pushToken of tokens) {
+    // Valida se o token é um token Expo válido antes de tentar enviar
+    if (!Expo.isExpoPushToken(pushToken)) {
+      console.error(`Token ${pushToken} não é um token Expo válido.`);
+      continue;
+    }
+
+    messages.push({
+      to: pushToken,
+      sound: "default",
+      title: title,
+      body: message,
+      data: { withSome: "data" }, // Aqui você pode passar rotas para o app abrir
+    });
+  }
+
+  // O Expo exige que enviemos em pedaços (chunks) para não sobrecarregar
+  let chunks = expo.chunkPushNotifications(messages);
+  let tickets = [];
+
+  for (let chunk of chunks) {
+    try {
+      let ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+      tickets.push(...ticketChunk);
+    } catch (error) {
+      console.error("Erro ao enviar chunk de notificações:", error);
+    }
+  }
+
+  return tickets;
+};
+export const sendDynamicNotification = async (req: Request, res: Response) => {
+  const { target, title, message } = req.body; // target vindo do seu Dashboard
+
+  try {
+    // Definimos o filtro do Prisma baseado no target que VOCÊ escolher no Dashboard
+    let queryFilter = {};
+
+    switch (target) {
+      case "FREE":
+        queryFilter = { isPremium: false };
+        break;
+      case "PRO":
+        queryFilter = { isPremium: true };
+        break;
+      case "SECURITY_VULNERABLE":
+        queryFilter = { recoveryQuestion: null };
+        break;
+      case "ALL":
+        queryFilter = {}; // Sem filtro, pega todo mundo
+        break;
+      default:
+        return res.status(400).json({ error: "Target inválido" });
+    }
+
+    // Buscamos apenas usuários que tenham o pushToken cadastrado
+    const users = await prisma.user.findMany({
+      where: {
+        ...queryFilter,
+        pushToken: { not: null },
+      },
+      select: { pushToken: true },
+    });
+
+    const tokens = users.map((u) => u.pushToken as string);
+
+    if (tokens.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "Nenhum usuário encontrado para este alvo." });
+    }
+
+    // Chama a função do Expo (aquela dos chunks)
+    await sendExpoPush(tokens, title, message);
+
+    return res.json({ success: true, count: tokens.length });
+  } catch (error) {
+    return res.status(500).json({ error: "Erro ao processar disparo." });
+  }
+};
+
+//buscando pushToken user
+export const updatePushToken = async (req: Request, res: Response) => {
+  const { pushToken } = req.body;
+  const userId = req.userId; // ID vindo do token JWT no middleware de autenticação
+
+  if (!pushToken) {
+    return res.status(400).json({ error: "Token não fornecido." });
+  }
+
+  try {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { pushToken },
+    });
+
+    return res
+      .status(200)
+      .json({ message: "Push token atualizado com sucesso!" });
+  } catch (error) {
+    console.error("Erro ao atualizar push token:", error);
+    return res.status(500).json({ error: "Erro interno ao salvar token." });
   }
 };
