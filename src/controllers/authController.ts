@@ -1555,41 +1555,42 @@ export const sendExpoPush = async (
   title: string,
   message: string,
 ) => {
-  const { Expo } = await import("expo-server-sdk");
-  const expo = new Expo();
-  let messages = [];
+  if (tokens.length === 0) return;
 
-  for (let pushToken of tokens) {
-    if (!pushToken) continue;
-    // Valida se o token é um token Expo válido antes de tentar enviar
-    if (!Expo.isExpoPushToken(pushToken)) {
-      console.error(`Token ${pushToken} não é um token Expo válido.`);
-      continue;
-    }
+  // 1. Estruturar as notificações para o formato que o Expo exige
+  const notifications = tokens.map((token) => ({
+    to: token,
+    title: title,
+    body: message,
+    sound: "default",
+    data: { project: "PassGuard" },
+  }));
 
-    messages.push({
-      to: pushToken,
-      sound: "default",
-      title: title,
-      body: message,
-      data: { withSome: "data" }, // Aqui você pode passar rotas para o app abrir
+  try {
+    // 2. Disparo direto para a API do Expo via HTTP POST
+    const response = await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Accept-encoding": "gzip, deflate",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(notifications),
     });
-  }
 
-  // O Expo exige que enviemos em pedaços (chunks) para não sobrecarregar
-  let chunks = expo.chunkPushNotifications(messages);
-  let tickets = [];
+    const result = await response.json();
 
-  for (let chunk of chunks) {
-    try {
-      let ticketChunk = await expo.sendPushNotificationsAsync(chunk);
-      tickets.push(...ticketChunk);
-    } catch (error) {
-      console.error("Erro ao enviar chunk de notificações:", error);
+    if (!response.ok) {
+      console.error("❌ Erro na API do Expo:", result);
+      throw new Error("Falha ao comunicar com servidor de notificações.");
     }
-  }
 
-  return tickets;
+    console.log("✅ Notificações enviadas via Fetch:", result);
+    return result;
+  } catch (error: any) {
+    console.error("❌ Erro fatal no disparo:", error.message);
+    throw new Error(`Erro no Fetch: ${error.message}`);
+  }
 };
 export const sendDynamicNotification = async (req: Request, res: Response) => {
   const { target, title, message } = req.body; // target vindo do seu Dashboard
