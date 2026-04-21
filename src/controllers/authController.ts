@@ -1638,7 +1638,11 @@ export const sendDynamicNotification = async (req: Request, res: Response) => {
 
     return res.json({ success: true, count: tokens.length });
   } catch (error) {
-    return res.status(500).json({ error: message });
+    return res.status(500).json({
+      message: "Erro interno",
+      details: error.message,
+      stack: error.stack,
+    });
   }
 };
 
