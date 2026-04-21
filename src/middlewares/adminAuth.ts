@@ -7,7 +7,7 @@ export const adminAuth = (req, res, next) => {
 
   try {
     // Verifique se a chave é fixa ou um JWT
-    if (token === process.env.ADMIN_SECRET) {
+    if (token === process.env.ADMIN_API_KEY) {
       return next();
     }
     // Se for JWT:
