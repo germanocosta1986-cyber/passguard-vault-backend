@@ -1560,6 +1560,7 @@ export const sendExpoPush = async (
   let messages = [];
 
   for (let pushToken of tokens) {
+    if (!pushToken) continue;
     // Valida se o token é um token Expo válido antes de tentar enviar
     if (!Expo.isExpoPushToken(pushToken)) {
       console.error(`Token ${pushToken} não é um token Expo válido.`);
@@ -1592,6 +1593,7 @@ export const sendExpoPush = async (
 };
 export const sendDynamicNotification = async (req: Request, res: Response) => {
   const { target, title, message } = req.body; // target vindo do seu Dashboard
+  console.log("SendDynamicNotifications: ", req.body);
 
   try {
     // Definimos o filtro do Prisma baseado no target que VOCÊ escolher no Dashboard
@@ -1636,7 +1638,7 @@ export const sendDynamicNotification = async (req: Request, res: Response) => {
 
     return res.json({ success: true, count: tokens.length });
   } catch (error) {
-    return res.status(500).json({ error: "Erro ao processar disparo." });
+    return res.status(500).json({ error: message });
   }
 };
 
