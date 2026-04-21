@@ -42,7 +42,12 @@ import { adminAuth } from "./middlewares/adminAuth";
 
 const app = express();
 
-app.use(cors({ origin: "http://localhost:3001" }));
+app.use(
+  cors({
+    origin: "http://localhost:3001",
+    allowedHeaders: ["Content-Type", "Authorization", "x-admin-key"],
+  }),
+);
 
 // ROTA DO WEBHOOK (Mantida antes do express.json)
 app.post(

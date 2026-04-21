@@ -1,11 +1,20 @@
-import { Request, Response, NextFunction } from "express";
+export const adminAuth = (req, res, next) => {
+  const token = req.headers["x-admin-key"];
 
-export const adminAuth = (req: Request, res: Response, next: NextFunction) => {
-  const adminKey = req.headers["x-admin-key"];
+  if (!token) {
+    return res.status(401).json({ error: "Token não fornecido" });
+  }
 
-  if (adminKey === process.env.ADMIN_API_KEY) {
+  try {
+    // Verifique se a chave é fixa ou um JWT
+    if (token === process.env.ADMIN_SECRET) {
+      return next();
+    }
+    // Se for JWT:
+    // const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // req.adminId = decoded.id;
     next();
-  } else {
-    res.status(403).json({ error: "Acesso negado. Chave inválida." });
+  } catch (err) {
+    return res.status(401).json({ error: "Token inválido" });
   }
 };
