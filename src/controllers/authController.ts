@@ -7,6 +7,7 @@ import "dotenv/config";
 
 import Stripe from "stripe";
 import { AlertType, AppAlert } from "../types/auth";
+import { SendNotificationRequest } from "../types/sendNotification";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
   apiVersion: "2024-04-10" as any,
@@ -1554,6 +1555,8 @@ export const sendExpoPush = async (
   tokens: string[],
   title: string,
   message: string,
+  router: string,
+  category: string,
 ) => {
   if (tokens.length === 0) return;
 
@@ -1563,7 +1566,12 @@ export const sendExpoPush = async (
     title: title,
     body: message,
     sound: "default",
-    data: { project: "PassGuard" },
+    priority: "high",
+    data: {
+      ur: router,
+      category: category,
+      project: "PassGuard",
+    },
   }));
 
   try {
@@ -1593,11 +1601,15 @@ export const sendExpoPush = async (
   }
 };
 export const sendDynamicNotification = async (req: Request, res: Response) => {
-  const { target, title, message } = req.body; // target vindo do seu Dashboard
+  const { target, title, message, category, route } =
+    req.body as SendNotificationRequest; // target vindo do seu Dashboard
   console.log("SendDynamicNotifications: ", req.body);
 
   try {
     // Definimos o filtro do Prisma baseado no target que VOCÊ escolher no Dashboard
+
+    // Verificação de Sanidade (Safety Check)
+
     let queryFilter = {};
 
     switch (target) {
@@ -1621,10 +1633,17 @@ export const sendDynamicNotification = async (req: Request, res: Response) => {
     const users = await prisma.user.findMany({
       where: {
         ...queryFilter,
-        pushToken: { not: null },
+        pushToken: { not: null, startsWith: "ExponentPushToken" },
+        plan: target === "ALL" ? undefined : target,
       },
       select: { pushToken: true },
     });
+
+    if (target === "FREE" && title.toLowerCase().includes("pro")) {
+      throw new Error(
+        "⚠️ Bloqueio Silva Dev: Você está tentando enviar uma mensagem 'PRO' para usuários 'FREE'.",
+      );
+    }
 
     const tokens = users.map((u) => u.pushToken as string);
 
@@ -1635,9 +1654,13 @@ export const sendDynamicNotification = async (req: Request, res: Response) => {
     }
 
     // Chama a função do Expo (aquela dos chunks)
-    await sendExpoPush(tokens, title, message);
+    const result = await sendExpoPush(tokens, title, message, route, category);
 
-    return res.json({ success: true, count: tokens.length });
+    return res.status(200).json({
+      success: true,
+      message: `Disparo de ${category} enviado para ${tokens.length} usuários.`,
+      result,
+    });
   } catch (error) {
     return res.status(500).json({
       message: "Erro interno",
