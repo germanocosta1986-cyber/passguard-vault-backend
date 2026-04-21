@@ -95,7 +95,7 @@ app.delete("/api/campaigns/:id", DeleteCampaign);
 
 app.get("/api/admin/users", adminAuth, listAllUsers);
 app.post("/api/admin/notifications/send", adminAuth, sendDynamicNotification);
-app.put("/api/users/push-token", authMiddleware, updatePushToken);
+app.patch("/api/users/push-token", authMiddleware, updatePushToken);
 // 2. IMPORTANTE: Envolva o listen em um condicional
 // Isso evita que a Vercel tente abrir portas desnecessárias
 
