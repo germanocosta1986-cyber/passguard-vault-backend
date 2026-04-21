@@ -1632,9 +1632,8 @@ export const sendDynamicNotification = async (req: Request, res: Response) => {
     // Buscamos apenas usuários que tenham o pushToken cadastrado
     const users = await prisma.user.findMany({
       where: {
-        ...queryFilter,
         pushToken: { not: null, startsWith: "ExponentPushToken" },
-        plan: target === "ALL" ? undefined : target,
+        ...queryFilter,
       },
       select: { pushToken: true },
     });
