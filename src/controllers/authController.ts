@@ -1635,11 +1635,11 @@ export const sendDynamicNotification = async (req: Request, res: Response) => {
       select: { pushToken: true },
     });
 
-    /*   if (target === "FREE" && title.toLowerCase().includes("pro")) {
+    if (target === "FREE" && title.toLowerCase().includes("pro")) {
       throw new Error(
         "⚠️ Bloqueio Silva Dev: Você está tentando enviar uma mensagem 'PRO' para usuários 'FREE'.",
       );
-    } */
+    }
 
     const tokens = users.map((u) => u.pushToken as string);
 
