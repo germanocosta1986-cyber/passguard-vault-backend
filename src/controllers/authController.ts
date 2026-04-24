@@ -1601,7 +1601,7 @@ export const sendExpoPush = async (
   }
 };
 export const sendDynamicNotification = async (req: Request, res: Response) => {
-  const { target, title, message, category, route } =
+  const { target, title, message, category, router } =
     req.body as SendNotificationRequest; // target vindo do seu Dashboard
   console.log("SendDynamicNotifications: ", req.body);
 
@@ -1650,7 +1650,7 @@ export const sendDynamicNotification = async (req: Request, res: Response) => {
     }
 
     // Chama a função do Expo (aquela dos chunks)
-    const result = await sendExpoPush(tokens, title, message, route, category);
+    const result = await sendExpoPush(tokens, title, message, router, category);
 
     return res.status(200).json({
       success: true,

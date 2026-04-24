@@ -3,5 +3,5 @@ export interface SendNotificationRequest {
   category: string; // Ex: 'PROMO', 'SECURITY_TIP', 'PAYMENT_ISSUE'
   title: string;
   message: string;
-  route: string; // A rota que você escolher no Dashboard
+  router: string; // A rota que você escolher no Dashboard
 }
