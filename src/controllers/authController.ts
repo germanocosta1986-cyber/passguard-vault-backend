@@ -1635,6 +1635,10 @@ export const sendDynamicNotification = async (req: Request, res: Response) => {
       select: { pushToken: true },
     });
 
+    const uniqueTokens = [...new Set(users.map((u) => u.pushToken))];
+    if (uniqueTokens.length === 0)
+      return res.status(404).json({ message: "Sem tokens." });
+
     if (target === "FREE" && title.toLowerCase().includes("pro")) {
       throw new Error(
         "⚠️ Bloqueio Silva Dev: Você está tentando enviar uma mensagem 'PRO' para usuários 'FREE'.",
