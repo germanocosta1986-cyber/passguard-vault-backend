@@ -1568,7 +1568,7 @@ export const sendExpoPush = async (
     sound: "default",
     priority: "high",
     data: {
-      ur: router,
+      router: router,
       category: category,
       project: "PassGuard",
     },
