@@ -1635,42 +1635,29 @@ export const sendDynamicNotification = async (req: Request, res: Response) => {
       select: { pushToken: true },
     });
 
-    if (target === "FREE" && title.toLowerCase().includes("pro")) {
+    /* if (target === "FREE" && title.toLowerCase().includes("pro")) {
       throw new Error(
         "⚠️ Bloqueio Silva Dev: Você está tentando enviar uma mensagem 'PRO' para usuários 'FREE'.",
       );
-    }
+    } */
 
     const tokens = users.map((u) => u.pushToken as string);
-    const uniqueTokens = Array.from(new Set(tokens)); // Remove tokens duplicados
 
-    if (uniqueTokens.length === 0) {
-      return res.status(404).json({
-        message: "Nenhum token válido encontrado para este alvo.",
-      });
-    }
-
-    if (uniqueTokens.length === 0) {
+    if (tokens.length === 0) {
       return res
         .status(404)
         .json({ message: "Nenhum usuário encontrado para este alvo." });
     }
 
     // Chama a função do Expo (aquela dos chunks)
-    const result = await sendExpoPush(
-      uniqueTokens,
-      title,
-      message,
-      router,
-      category,
-    );
+    const result = await sendExpoPush(tokens, title, message, router, category);
 
     return res.status(200).json({
       success: true,
-      message: `Disparo de ${category} enviado para ${uniqueTokens.length} usuários.`,
+      message: `Disparo de ${category} enviado para ${tokens.length} usuários.`,
       result,
       Stats: {
-        totalTokens: uniqueTokens.length,
+        totalTokens: tokens.length,
         expoSuccess: result.data.filter((r: any) => r.status === "ok").length,
       },
     });
