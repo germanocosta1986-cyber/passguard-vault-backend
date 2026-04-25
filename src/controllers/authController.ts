@@ -1633,7 +1633,7 @@ export const sendDynamicNotification = async (req: Request, res: Response) => {
         },
         ...queryFilter,
       },
-      select: { pushToken: true },
+      select: { id: true, pushToken: true },
     });
 
     // 3. Validação de segurança Silva Dev
@@ -1645,6 +1645,19 @@ export const sendDynamicNotification = async (req: Request, res: Response) => {
           "⚠️ Bloqueio: Você não pode usar a palavra 'PRO' em campanhas para usuários FREE.",
       });
     }
+
+    // 3. 🔥 O PULO DO GATO: Salvar no Banco de Dados para o Inbox do App
+    // Usamos o createMany para ser performático e salvar para todos os usuários de uma vez
+    await prisma.notification.createMany({
+      data: users.map((user) => ({
+        userId: user.id, // Amarra a notificação ao usuário específico
+        title,
+        message,
+        category,
+        route: router, // Salva a rota para o clique posterior no histórico
+        isRead: false,
+      })),
+    });
 
     // 4. 🔥 SOLUÇÃO PARA DUPLICADOS: Criar lista de tokens ÚNICOS
     // O Set remove automaticamente strings repetidas
