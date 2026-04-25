@@ -4,7 +4,6 @@ import express from "express";
 import cors from "cors";
 // 1. Removido o .js e corrigido o caminho relativo
 import {
-  AlertsDynamic,
   checkSubscription,
   CreateCampaign,
   createCheckoutSession,
@@ -23,6 +22,7 @@ import {
   handleStopRenewal,
   listAllCampaigns,
   listAllUsers,
+  listNotifications,
   listPasswords,
   login,
   makePremium,
@@ -91,12 +91,14 @@ app.post("/api/create-checkout-session", authMiddleware, createCheckoutSession);
 app.post("/api/billing/portal", authMiddleware, createPortalSession);
 
 //rota campaigns do Saas Passguard
-app.get("/api/alerts/campaigns", authMiddleware, AlertsDynamic);
+//app.get("/api/alerts/campaigns", authMiddleware, AlertsDynamic);
 app.get("/api/admin/campaigns", adminAuth, GetAllCampaignsAdmin);
 app.patch("/api/admin/campaigns/status", adminAuth, listAllCampaigns);
 //app.post("/api/admin/campaigns", adminAuth, GetAllCampaignsAdmin);
 app.post("/api/campaigns", adminAuth, CreateCampaign);
 app.delete("/api/campaigns/:id", DeleteCampaign);
+app.get("/api/notifications", authMiddleware, listNotifications);
+app.get("/api/notifications/:id/read", authMiddleware, listNotifications);
 
 app.get("/api/admin/users", adminAuth, listAllUsers);
 app.post("/api/admin/notifications/send", adminAuth, sendDynamicNotification);

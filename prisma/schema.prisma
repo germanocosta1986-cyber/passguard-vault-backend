@@ -37,6 +37,23 @@ model User {
   sessions       Session[]
   invoices       Invoice[]
   activityLogs ActivityLog[]
+  notifications   Notification[]
+}
+model Notification {
+  id        String   @id @default(uuid())
+  title     String
+  message   String
+  category  String   // PROMO, SECURITY_TIPS, etc.
+  route     String?  // Para onde levar o usuário ao clicar no Inbox
+  isRead    Boolean  @default(false)
+  
+  // Relacionamento com o Usuário
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId]) // Index para busca rápida de notificações por usuário
 }
 
 model Password {

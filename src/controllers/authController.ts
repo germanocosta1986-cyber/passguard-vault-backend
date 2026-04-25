@@ -1345,7 +1345,7 @@ export const CreateCampaign = async (req: Request, res: Response) => {
   }
 };
 
-export const AlertsDynamic = async (req: Request, res: Response) => {
+/* export const AlertsDynamic = async (req: Request, res: Response) => {
   try {
     const userId = req.userId;
 
@@ -1454,7 +1454,7 @@ export const AlertsDynamic = async (req: Request, res: Response) => {
     console.error("Erro AlertsDynamic:", error);
     return res.status(500).json({ error: "Erro ao buscar alertas dinâmicos." });
   }
-};
+}; */
 
 export const GetAllCampaignsAdmin = async (req: Request, res: Response) => {
   try {
@@ -1637,13 +1637,14 @@ export const sendDynamicNotification = async (req: Request, res: Response) => {
     });
 
     // 3. Validação de segurança Silva Dev
-    /* if (target === "FREE" && title.toLowerCase().includes("pro")) {
-      // Usamos return aqui para não quebrar o servidor, apenas avisar
+    const regexPro = /\bpro\b/i;
+
+    if (target === "FREE" && regexPro.test(title)) {
       return res.status(400).json({
         error:
-          "⚠️ Bloqueio: Mensagem 'PRO' não deve ser enviada para público 'FREE'.",
+          "⚠️ Bloqueio: Você não pode usar a palavra 'PRO' em campanhas para usuários FREE.",
       });
-    } */
+    }
 
     // 4. 🔥 SOLUÇÃO PARA DUPLICADOS: Criar lista de tokens ÚNICOS
     // O Set remove automaticamente strings repetidas
@@ -1680,6 +1681,21 @@ export const sendDynamicNotification = async (req: Request, res: Response) => {
       message: "Erro interno no servidor",
       details: error.message,
     });
+  }
+};
+// Lista de Notificações para o Admin (Dashboard)
+export const listNotifications = async (req: Request, res: Response) => {
+  const userId = req.userId;
+  try {
+    const notifications = await prisma.notification.findMany({
+      where: { userId: userId },
+      orderBy: { createdAt: "desc" },
+    });
+    return res.status(200).json(notifications);
+  } catch (error) {
+    console.error("Erro ao listar notificações:", error);
+
+    return res.status(500).json({ error: "Erro ao buscar notificações." });
   }
 };
 
