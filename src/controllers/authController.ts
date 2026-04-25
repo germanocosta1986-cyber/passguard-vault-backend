@@ -1602,14 +1602,12 @@ export const sendExpoPush = async (
 };
 export const sendDynamicNotification = async (req: Request, res: Response) => {
   const { target, title, message, category, router } =
-    req.body as SendNotificationRequest; // target vindo do seu Dashboard
-  console.log("SendDynamicNotifications: ", req.body);
+    req.body as SendNotificationRequest;
+
+  console.log("🚀 Iniciando Disparo Silva Dev:", { target, category, router });
 
   try {
-    // Definimos o filtro do Prisma baseado no target que VOCÊ escolher no Dashboard
-
-    // Verificação de Sanidade (Safety Check)
-
+    // 1. Definição do filtro de público
     let queryFilter = {};
 
     switch (target) {
@@ -1620,52 +1618,67 @@ export const sendDynamicNotification = async (req: Request, res: Response) => {
         queryFilter = { isPremium: true };
         break;
       case "ALL":
-        queryFilter = {}; // Sem filtro, pega todo mundo
+        queryFilter = {}; // Sem filtro, pega todos
         break;
       default:
         return res.status(400).json({ error: "Target inválido" });
     }
 
-    // Buscamos apenas usuários que tenham o pushToken cadastrado
+    // 2. Busca usuários no banco
     const users = await prisma.user.findMany({
       where: {
-        pushToken: { not: null, startsWith: "ExponentPushToken" },
+        pushToken: {
+          not: null,
+          startsWith: "ExponentPushToken",
+        },
         ...queryFilter,
       },
       select: { pushToken: true },
     });
 
+    // 3. Validação de segurança Silva Dev
     /* if (target === "FREE" && title.toLowerCase().includes("pro")) {
-      throw new Error(
-        "⚠️ Bloqueio Silva Dev: Você está tentando enviar uma mensagem 'PRO' para usuários 'FREE'.",
-      );
+      // Usamos return aqui para não quebrar o servidor, apenas avisar
+      return res.status(400).json({
+        error:
+          "⚠️ Bloqueio: Mensagem 'PRO' não deve ser enviada para público 'FREE'.",
+      });
     } */
 
-    const tokens = users.map((u) => u.pushToken as string);
+    // 4. 🔥 SOLUÇÃO PARA DUPLICADOS: Criar lista de tokens ÚNICOS
+    // O Set remove automaticamente strings repetidas
+    const allTokens = users.map((u) => u.pushToken as string);
+    const uniqueTokens = Array.from(new Set(allTokens));
 
-    if (tokens.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "Nenhum usuário encontrado para este alvo." });
+    if (uniqueTokens.length === 0) {
+      return res.status(404).json({
+        message: "Nenhum token válido encontrado para este alvo.",
+      });
     }
 
-    // Chama a função do Expo (aquela dos chunks)
-    const result = await sendExpoPush(tokens, title, message, router, category);
+    // 5. Disparo via Expo (usando a lista limpa)
+    const result = await sendExpoPush(
+      uniqueTokens,
+      title,
+      message,
+      router,
+      category,
+    );
 
     return res.status(200).json({
       success: true,
-      message: `Disparo de ${category} enviado para ${tokens.length} usuários.`,
-      result,
-      Stats: {
-        totalTokens: tokens.length,
-        expoSuccess: result.data.filter((r: any) => r.status === "ok").length,
+      message: `Disparo ${category} enviado com sucesso.`,
+      stats: {
+        totalUsersFound: allTokens.length,
+        uniqueDevicesNotified: uniqueTokens.length, // Quantos celulares realmente apitaram
       },
+      result,
     });
-  } catch (error) {
+  } catch (error: any) {
+    console.error("❌ Erro no Controller de Notificação:", error.message);
     return res.status(500).json({
-      message: "Erro interno",
+      message: "Erro interno no servidor",
       details: error.message,
-      stack: error.stack,
     });
   }
 };
