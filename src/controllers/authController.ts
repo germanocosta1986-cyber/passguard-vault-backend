@@ -1711,7 +1711,24 @@ export const listNotifications = async (req: Request, res: Response) => {
     return res.status(500).json({ error: "Erro ao buscar notificações." });
   }
 };
+export const markAsRead = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const userId = req.userId; // Importante para segurança
 
+  try {
+    await prisma.notification.update({
+      where: {
+        id: id as unknown as string, // Força o tipo para string
+        userId: userId, // Garante que o usuário só mude as dele
+      },
+      data: { isRead: true },
+    });
+
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    return res.status(500).json({ error: "Erro ao atualizar banco" });
+  }
+};
 //buscando pushToken user
 export const updatePushToken = async (req: Request, res: Response) => {
   const { pushToken } = req.body;
