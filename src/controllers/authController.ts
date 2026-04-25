@@ -1345,7 +1345,7 @@ export const CreateCampaign = async (req: Request, res: Response) => {
   }
 };
 
-/* export const AlertsDynamic = async (req: Request, res: Response) => {
+export const AlertsDynamic = async (req: Request, res: Response) => {
   try {
     const userId = req.userId;
 
@@ -1454,7 +1454,7 @@ export const CreateCampaign = async (req: Request, res: Response) => {
     console.error("Erro AlertsDynamic:", error);
     return res.status(500).json({ error: "Erro ao buscar alertas dinâmicos." });
   }
-}; */
+};
 
 export const GetAllCampaignsAdmin = async (req: Request, res: Response) => {
   try {
