@@ -38,6 +38,7 @@ model User {
   invoices       Invoice[]
   activityLogs ActivityLog[]
   notifications   Notification[]
+  Interactions Interaction[]
 }
 model Notification {
   id        String   @id @default(uuid())
@@ -52,8 +53,32 @@ model Notification {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
-
+  Interactions Interaction[]
   @@index([userId]) // Index para busca rápida de notificações por usuário
+}
+
+model Interaction {
+  id              String   @id @default(uuid())
+  userId          String
+  
+  // Relações Opcionais: O clique veio de onde?
+  notificationId  String?  // Se for clique no Inbox/Push
+  campaignId      String?  // Se for clique no Banner da Home (sua tabela campaigns)
+  
+  type            String   @default("CLICK") // CLICK, VIEW, DISMISS
+  source          String   // Ex: "HOME_BANNER", "INBOX_LIST", "MODAL_PROMO"
+  
+  createdAt       DateTime @default(now())
+
+  // Relacionamentos
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notification    Notification? @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  campaign        Campaign?     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([notificationId])
+  @@index([campaignId])
+  @@map("interactions")
 }
 
 model Password {
@@ -133,6 +158,7 @@ model Campaign {
   id             String    @id @default(uuid())
   title          String
   message        String
+  imageUrl       String?   // URL da imagem/banner da campanha
   // Usando String no Prisma para flexibilidade, mas validaremos no código
   type           String    @default("INFO") 
   
@@ -153,5 +179,8 @@ model Campaign {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
+  totalViews  Int      @default(0)
+  totalClicks Int      @default(0)
+  Interactions Interaction[] // Relacionamento para rastrear cliques e visualizações
   @@map("campaigns")
 }

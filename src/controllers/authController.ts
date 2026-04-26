@@ -1729,6 +1729,43 @@ export const markAsRead = async (req: Request, res: Response) => {
     return res.status(500).json({ error: "Erro ao atualizar banco" });
   }
 };
+
+// Rota para Notification click
+export const trackInteraction = async (req: Request, res: Response) => {
+  const { notificationId, campaignId, type, source } = req.body;
+  const userId = req.userId;
+
+  try {
+    await prisma.$transaction([
+      // 1. Registra a interação detalhada
+      prisma.interaction.create({
+        data: { userId, notificationId, campaignId, type, source },
+      }),
+      // 2. Incrementa o contador rápido na tabela de origem (Atomic increment)
+      ...(campaignId
+        ? [
+            prisma.campaign.update({
+              where: { id: campaignId },
+              data: { totalClicks: { increment: 1 } },
+            }),
+          ]
+        : []),
+      ...(notificationId
+        ? [
+            prisma.notification.update({
+              where: { id: notificationId },
+              data: { isRead: true }, // Se for clique em notificação, já marca como lida
+            }),
+          ]
+        : []),
+    ]);
+
+    return res.status(200).json({ ok: true });
+  } catch (error) {
+    return res.status(500).json({ error: "Erro ao processar clique" });
+  }
+};
+
 //buscando pushToken user
 export const updatePushToken = async (req: Request, res: Response) => {
   const { pushToken } = req.body;
