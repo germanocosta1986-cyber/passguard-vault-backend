@@ -1456,23 +1456,98 @@ export const AlertsDynamic = async (req: Request, res: Response) => {
   }
 };
 
+// ROTA PARA O ADMIN VER TODAS AS CAMPANHAS COM ESTATÍSTICAS DETALHADAS
 export const GetAllCampaignsAdmin = async (req: Request, res: Response) => {
   try {
-    // Admin vê tudo: ativos, inativos, PRO, FREE, expirados...
     const campaigns = await prisma.campaign.findMany({
+      include: {
+        // Trazemos a contagem detalhada de interações
+        _count: {
+          select: { Interactions: true },
+        },
+        // Buscamos os IDs de quem clicou para calcular cliques únicos
+        Interactions: {
+          distinct: ["userId"],
+          select: { userId: true },
+        },
+      },
       orderBy: { createdAt: "desc" },
     });
-    const formatted = campaigns.map((camp) => ({
-      ...camp,
-      expiresAt: camp.expiresAt ? camp.expiresAt.getTime() : null,
-    }));
-    console.log(campaigns, formatted);
+
+    const formatted = campaigns.map((camp) => {
+      // Calculamos o clique único baseado no array de interações
+      const uniqueClicksCount = camp.Interactions.length;
+
+      return {
+        ...camp,
+        expiresAt: camp.expiresAt ? camp.expiresAt.getTime() : null,
+        totalClicks: camp.totalClicks, // O contador atômico (rápido)
+        uniqueClicks: uniqueClicksCount, // Cliques por pessoas diferentes
+        // Opcional: Removemos o array de interações bruto para não pesar o JSON
+        interactions: undefined,
+      };
+    });
 
     return res.json(formatted);
   } catch (error) {
+    console.error("Erro Admin Stats:", error);
     return res
       .status(500)
       .json({ error: "Erro ao listar campanhas para o admin." });
+  }
+};
+
+// ROTA PARA O ADMIN VER AS ESTATÍSTICAS GLOBAIS DE INTERAÇÃO (CLIQUES, ORIGEM, GRÁFICO DE CLIQUES DIÁRIOS, ETC)
+export const GetCampaignGlobalStats = async (req: Request, res: Response) => {
+  try {
+    // 1. Total Geral de Cliques e Usuários Únicos que interagiram
+    const totalInteractions = await prisma.interaction.count();
+    const uniqueUsersInteracted = await prisma.interaction.groupBy({
+      by: ["userId"],
+    });
+
+    // 2. Cliques por Origem (Para saber se clicam mais no Banner ou no Inbox)
+    const statsBySource = await prisma.interaction.groupBy({
+      by: ["source"],
+      _count: { id: true },
+    });
+
+    // 3. Cliques nos últimos 7 dias (Para o gráfico do Dashboard)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const dailyClicks = await prisma.interaction.findMany({
+      where: {
+        createdAt: { gte: sevenDaysAgo },
+      },
+      select: { createdAt: true },
+    });
+
+    // Formatamos os dados para o gráfico do Frontend
+    const chartData = dailyClicks.reduce((acc: any, curr) => {
+      const date = curr.createdAt.toLocaleDateString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+      });
+      acc[date] = (acc[date] || 0) + 1;
+      return acc;
+    }, {});
+
+    return res.json({
+      summary: {
+        totalClicks: totalInteractions,
+        uniqueUsers: uniqueUsersInteracted.length,
+      },
+      sources: statsBySource,
+      chart: Object.entries(chartData).map(([date, clicks]) => ({
+        date,
+        clicks,
+      })),
+    });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ error: "Erro ao processar estatísticas globais." });
   }
 };
 

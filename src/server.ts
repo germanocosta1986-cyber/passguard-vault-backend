@@ -15,6 +15,7 @@ import {
   DeleteCampaign,
   deletePassword,
   GetAllCampaignsAdmin,
+  GetCampaignGlobalStats,
   getHomeResponse,
   getProfile,
   getRecoveryQuestion,
@@ -135,6 +136,7 @@ app.get("/api/notifications", authMiddleware, listNotifications);
 app.patch("/api/notifications/:id/read", authMiddleware, markAsRead);
 //rota para registrar o clique na notificação
 app.post("/api/interactions", authMiddleware, trackInteraction);
+app.get("/api/campaigns/stats", authMiddleware, GetCampaignGlobalStats);
 
 // 2. IMPORTANTE: Envolva o listen em um condicional
 // Isso evita que a Vercel tente abrir portas desnecessárias
