@@ -1500,49 +1500,74 @@ export const GetAllCampaignsAdmin = async (req: Request, res: Response) => {
 // ROTA PARA O ADMIN VER AS ESTATÍSTICAS GLOBAIS DE INTERAÇÃO (CLIQUES, ORIGEM, GRÁFICO DE CLIQUES DIÁRIOS, ETC)
 export const GetCampaignGlobalStats = async (req: Request, res: Response) => {
   try {
-    // 1. Total Geral de Cliques e Usuários Únicos que interagiram
+    // 1. Totais Gerais
     const totalInteractions = await prisma.interaction.count();
     const uniqueUsersInteracted = await prisma.interaction.groupBy({
       by: ["userId"],
     });
 
-    // 2. Cliques por Origem (Para saber se clicam mais no Banner ou no Inbox)
+    // 2. Cliques por Origem
     const statsBySource = await prisma.interaction.groupBy({
       by: ["source"],
       _count: { id: true },
     });
 
-    // 3. Cliques nos últimos 7 dias (Para o gráfico do Dashboard)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    // 3. 🔥 AJUSTE: Pegar os últimos 30 dias para um Area Chart mais bonito
+    const daysToView = 30;
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - daysToView);
 
     const dailyClicks = await prisma.interaction.findMany({
-      where: {
-        createdAt: { gte: sevenDaysAgo },
-      },
+      where: { createdAt: { gte: startDate } },
       select: { createdAt: true },
+      orderBy: { createdAt: "asc" },
     });
 
-    // Formatamos os dados para o gráfico do Frontend
-    const chartData = dailyClicks.reduce((acc: any, curr) => {
-      const date = curr.createdAt.toLocaleDateString("pt-BR", {
+    // 4. 🔥 O PULO DO GATO: Garantir que todos os dias existam no gráfico (mesmo com 0 cliques)
+    const chartDataMap: Record<string, number> = {};
+
+    // Inicializa os últimos X dias com zero
+    for (let i = 0; i <= daysToView; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const label = d.toLocaleDateString("pt-BR", {
         day: "2-digit",
         month: "2-digit",
       });
-      acc[date] = (acc[date] || 0) + 1;
-      return acc;
-    }, {});
+      chartDataMap[label] = 0;
+    }
+
+    // Preenche com os dados reais do banco
+    dailyClicks.forEach((curr) => {
+      const dateLabel = curr.createdAt.toLocaleDateString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+      });
+      if (chartDataMap[dateLabel] !== undefined) {
+        chartDataMap[dateLabel] += 1;
+      }
+    });
+
+    // Converte para array e garante a ordem cronológica
+    const chartArray = Object.entries(chartDataMap)
+      .map(([date, clicks]) => ({ date, clicks }))
+      .reverse(); // reverse para ir do mais antigo ao mais atual
+
+    // 5. Métrica de Comparativo (Ontem vs Hoje) para o SaaS
+    const hoje = chartArray[chartArray.length - 1]?.clicks || 0;
+    const ontem = chartArray[chartArray.length - 2]?.clicks || 0;
 
     return res.json({
       summary: {
         totalClicks: totalInteractions,
         uniqueUsers: uniqueUsersInteracted.length,
+        todayClicks: hoje,
+        yesterdayClicks: ontem,
+        diffPercentage:
+          ontem > 0 ? (((hoje - ontem) / ontem) * 100).toFixed(1) : 0,
       },
       sources: statsBySource,
-      chart: Object.entries(chartData).map(([date, clicks]) => ({
-        date,
-        clicks,
-      })),
+      chart: chartArray,
     });
   } catch (error) {
     return res
