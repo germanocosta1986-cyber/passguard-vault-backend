@@ -1643,9 +1643,10 @@ export const sendExpoPush = async (
     sound: "default",
     priority: "high",
     data: {
-      router: router,
+      route: router,
       category: category,
       project: "PassGuard",
+      origin: "PUSH_NOTIFICATION",
     },
   }));
 
@@ -1723,16 +1724,25 @@ export const sendDynamicNotification = async (req: Request, res: Response) => {
 
     // 3. 🔥 O PULO DO GATO: Salvar no Banco de Dados para o Inbox do App
     // Usamos o createMany para ser performático e salvar para todos os usuários de uma vez
-    await prisma.notification.createMany({
-      data: users.map((user) => ({
-        userId: user.id, // Amarra a notificação ao usuário específico
-        title,
-        message,
-        category,
-        route: router, // Salva a rota para o clique posterior no histórico
-        isRead: false,
-      })),
-    });
+    const notificationsToSave = users.map((user) => ({
+      userId: user.id,
+      title: title,
+      message: message,
+      category: category,
+      route: router || null, // 👈 Aqui: 'route' é o nome no Model, 'router' vem do seu body
+      isRead: false,
+      // Interactions não entra aqui, o Prisma ignora relações no createMany
+    }));
+
+    try {
+      await prisma.notification.createMany({
+        data: notificationsToSave,
+        skipDuplicates: true, // Segurança Silva Dev para evitar erros de constraint
+      });
+    } catch (error) {
+      console.error("❌ Erro no Prisma createMany:", error);
+      // Se der erro aqui, o 400 vem daqui
+    }
 
     // 4. 🔥 SOLUÇÃO PARA DUPLICADOS: Criar lista de tokens ÚNICOS
     // O Set remove automaticamente strings repetidas
