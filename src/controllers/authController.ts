@@ -1671,16 +1671,14 @@ export const GetFinanceStats = async (req: Request, res: Response) => {
     today.setHours(0, 0, 0, 0);
     const thisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
-    // 1. Buscamos todas as faturas para processar os valores
-    const allInvoices = await prisma.invoice.findMany({
+    // 1. Cálculos de Receita (Baseado em todas as Invoices "Paga")
+    const allPaidInvoices = await prisma.invoice.findMany({
       where: { status: "Paga" },
-      select: { amount: true, date: true }, // Usando 'date' que já existia no seu model
+      select: { amount: true, date: true },
     });
 
-    // Função auxiliar para converter "R$ 99,90" em 99.90 (number)
     const parseCurrency = (value: string) => {
       if (!value) return 0;
-      // Remove R$, pontos de milhar e troca vírgula por ponto
       const cleanValue = value
         .replace("R$", "")
         .replace(/\./g, "")
@@ -1689,53 +1687,50 @@ export const GetFinanceStats = async (req: Request, res: Response) => {
       return parseFloat(cleanValue) || 0;
     };
 
-    // Faturamento Total
-    const totalRevenue = allInvoices.reduce(
+    const totalRevenue = allPaidInvoices.reduce(
       (acc, curr) => acc + parseCurrency(curr.amount),
       0,
     );
-
-    // MRR (Faturamento do mês atual baseado no campo 'date')
-    const estimatedMRR = allInvoices
+    const estimatedMRR = allPaidInvoices
       .filter((inv) => new Date(inv.date) >= thisMonth)
       .reduce((acc, curr) => acc + parseCurrency(curr.amount), 0);
 
-    // 2. Métricas de Assinaturas e Cliques
-    const [totalActive, todayClicks, thirtyDayNew] = await Promise.all([
+    // 2. Contagem de Funil (FREE vs PRO)
+    const [totalUsers, totalPro, todayClicks] = await Promise.all([
+      prisma.user.count(),
       prisma.subscription.count({ where: { status: "active" } }),
       prisma.interaction.count({ where: { createdAt: { gte: today } } }),
-      prisma.subscription.count({
-        where: {
-          createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
-          status: "active",
-        },
-      }),
     ]);
 
-    // 3. Transações para a Tabela (Pegando direto das Invoices para ver o valor real)
-    const recentTransactions = await prisma.invoice.findMany({
-      take: 10,
-      orderBy: { date: "desc" },
+    // 3. Listagem de CLIENTES ÚNICOS (Recentemente criados ou ativos)
+    // Buscamos os usuários e trazemos a assinatura junto
+    const usersList = await prisma.user.findMany({
+      take: 15,
+      orderBy: { createdAt: "desc" },
       include: {
-        user: { select: { name: true, email: true } },
+        subscription: true,
+        // Opcional: pegar a última invoice para saber quanto ele pagou por último
+        invoices: {
+          take: 1,
+          orderBy: { date: "desc" },
+        },
       },
     });
 
     return res.json({
       summary: {
-        totalActive,
+        totalUsers,
+        totalFree: totalUsers - totalPro,
+        totalPro,
         totalRevenue,
-        todayClicks,
-        monthlyGrowth: thirtyDayNew,
         estimatedMRR,
+        todayClicks,
       },
-      transactions: recentTransactions,
+      customers: usersList, // Lista única de seres humanos, não de faturas
     });
   } catch (error) {
-    console.error("Erro Financeiro:", error);
-    return res
-      .status(500)
-      .json({ error: "Erro ao processar dados financeiros." });
+    console.error(error);
+    return res.status(500).json({ error: "Erro ao buscar dados do funil." });
   }
 };
 
