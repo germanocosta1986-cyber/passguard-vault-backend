@@ -1669,81 +1669,73 @@ export const GetFinanceStats = async (req: Request, res: Response) => {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
     const thisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
-    // 1. Cálculos de Receita (Invoices)
-    const [allPaidInvoices, monthInvoices] = await Promise.all([
-      prisma.invoice.findMany({
-        where: { status: "paid" },
-        select: { amount: true },
-      }),
-      prisma.invoice.findMany({
-        where: {
-          status: "paid",
-          createdAt: { gte: thisMonth },
-        },
-        select: { amount: true },
-      }),
-    ]);
+    // 1. Buscamos todas as faturas para processar os valores
+    const allInvoices = await prisma.invoice.findMany({
+      where: { status: "Paga" },
+      select: { amount: true, date: true }, // Usando 'date' que já existia no seu model
+    });
 
-    const totalRevenue = allPaidInvoices.reduce(
-      (acc, curr) => acc + Number(curr.amount) / 100,
+    // Função auxiliar para converter "R$ 99,90" em 99.90 (number)
+    const parseCurrency = (value: string) => {
+      if (!value) return 0;
+      // Remove R$, pontos de milhar e troca vírgula por ponto
+      const cleanValue = value
+        .replace("R$", "")
+        .replace(/\./g, "")
+        .replace(",", ".")
+        .trim();
+      return parseFloat(cleanValue) || 0;
+    };
+
+    // Faturamento Total
+    const totalRevenue = allInvoices.reduce(
+      (acc, curr) => acc + parseCurrency(curr.amount),
       0,
     );
 
-    const estimatedMRR = monthInvoices.reduce(
-      (acc, curr) => acc + Number(curr.amount) / 100,
-      0,
-    );
+    // MRR (Faturamento do mês atual baseado no campo 'date')
+    const estimatedMRR = allInvoices
+      .filter((inv) => new Date(inv.date) >= thisMonth)
+      .reduce((acc, curr) => acc + parseCurrency(curr.amount), 0);
 
-    // 2. Métricas de Usuários e Engajamento
-    const [totalActive, todayClicks, monthlyGrowth] = await Promise.all([
-      prisma.subscription.count({
-        where: { status: "active" },
-      }),
-      prisma.interaction.count({
-        where: { createdAt: { gte: today } },
-      }),
+    // 2. Métricas de Assinaturas e Cliques
+    const [totalActive, todayClicks, thirtyDayNew] = await Promise.all([
+      prisma.subscription.count({ where: { status: "active" } }),
+      prisma.interaction.count({ where: { createdAt: { gte: today } } }),
       prisma.subscription.count({
         where: {
-          createdAt: { gte: thirtyDaysAgo },
+          createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
           status: "active",
         },
       }),
     ]);
 
-    // 3. Transações para a Tabela (Últimas Assinaturas)
-    const recentTransactions = await prisma.subscription.findMany({
+    // 3. Transações para a Tabela (Pegando direto das Invoices para ver o valor real)
+    const recentTransactions = await prisma.invoice.findMany({
       take: 10,
-      orderBy: { createdAt: "desc" },
+      orderBy: { date: "desc" },
       include: {
-        user: {
-          select: {
-            name: true,
-            email: true,
-          },
-        },
+        user: { select: { name: true, email: true } },
       },
     });
 
     return res.json({
-      metrics: {
-        // Mudei para summary para bater com seu componente FinanceiroPage
+      summary: {
         totalActive,
         totalRevenue,
         todayClicks,
-        monthlyGrowth,
+        monthlyGrowth: thirtyDayNew,
         estimatedMRR,
       },
       transactions: recentTransactions,
     });
   } catch (error) {
     console.error("Erro Financeiro:", error);
-    return res.status(500).json({ error: "Erro ao buscar dados financeiros." });
+    return res
+      .status(500)
+      .json({ error: "Erro ao processar dados financeiros." });
   }
 };
 
