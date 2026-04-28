@@ -1,5 +1,5 @@
 // /backend/src/controllers/authController.ts
-import { Request, Response } from "express";
+import { NextFunction, Request, Response } from "express";
 import { prisma } from "../lib/prisma"; // Aquela instância que criamos
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
@@ -1646,6 +1646,72 @@ export const listAllUsers = async (req: Request, res: Response) => {
       error: "Erro interno ao buscar usuários",
       details: error.message,
     });
+  }
+};
+
+// Middleware para verificar se o usuário é admin
+export const adminAuth = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  const user = (req as any).user; // Pegando do seu middleware de auth comum
+
+  if (!user.isAdmin) {
+    return res
+      .status(403)
+      .json({ error: "Acesso negado. Apenas administradores." });
+  }
+
+  next();
+};
+export const GetFinanceStats = async (req: Request, res: Response) => {
+  try {
+    // 1. Faturamento Total (Soma de todas as assinaturas ativas)
+    // Supondo que você tenha o valor do plano no banco ou conte assinaturas
+    const activeSubscriptions = await prisma.subscription.count({
+      where: { status: "active" },
+    });
+
+    // 2. Novos Assinantes nos últimos 30 dias
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const newSubscribers = await prisma.subscription.count({
+      where: {
+        createdAt: { gte: thirtyDaysAgo },
+        status: "active",
+      },
+    });
+
+    // 3. Busca as últimas transações para a tabela do SaaS
+    const recentTransactions = await prisma.subscription.findMany({
+      take: 10,
+      orderBy: {
+        createdAt: "desc", // 👈 O segredo é estar AQUI, no nível da Subscription
+      },
+      include: {
+        user: {
+          select: {
+            name: true,
+            email: true,
+            // Se você incluir 'subscription' aqui dentro de novo,
+            // cria um loop desnecessário de dados.
+          },
+        },
+      },
+    });
+
+    return res.json({
+      metrics: {
+        totalActive: activeSubscriptions,
+        monthlyGrowth: newSubscribers,
+        estimatedMRR: activeSubscriptions * 19.9, // Exemplo de valor do seu plano
+      },
+      transactions: recentTransactions,
+    });
+  } catch (error) {
+    return res.status(500).json({ error: "Erro ao buscar dados financeiros." });
   }
 };
 

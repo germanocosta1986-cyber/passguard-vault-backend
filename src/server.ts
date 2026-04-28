@@ -137,6 +137,7 @@ app.patch("/api/notifications/:id/read", authMiddleware, markAsRead);
 //rota para registrar o clique na notificação
 app.post("/api/interactions", authMiddleware, trackInteraction);
 app.get("/api/campaigns/stats", adminAuth, GetCampaignGlobalStats);
+app.get("/api/admin/me", adminAuth, getProfile);
 
 // 2. IMPORTANTE: Envolva o listen em um condicional
 // Isso evita que a Vercel tente abrir portas desnecessárias
