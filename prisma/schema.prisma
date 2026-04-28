@@ -140,6 +140,8 @@ model Invoice {
   stripeInvoiceId String? @unique
 
   // 🔥 NOVOS CAMPOS
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
   hostedInvoiceUrl  String?
   invoicePdf        String?
   userId      String

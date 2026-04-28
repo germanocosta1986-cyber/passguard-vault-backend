@@ -1667,36 +1667,64 @@ export const adminAuth = async (
 };
 export const GetFinanceStats = async (req: Request, res: Response) => {
   try {
-    // 1. Faturamento Total (Soma de todas as assinaturas ativas)
-    // Supondo que você tenha o valor do plano no banco ou conte assinaturas
-    const activeSubscriptions = await prisma.subscription.count({
-      where: { status: "active" },
-    });
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-    // 2. Novos Assinantes nos últimos 30 dias
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const newSubscribers = await prisma.subscription.count({
-      where: {
-        createdAt: { gte: thirtyDaysAgo },
-        status: "active",
-      },
-    });
+    const thisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
-    // 3. Busca as últimas transações para a tabela do SaaS
+    // 1. Cálculos de Receita (Invoices)
+    const [allPaidInvoices, monthInvoices] = await Promise.all([
+      prisma.invoice.findMany({
+        where: { status: "paid" },
+        select: { amount: true },
+      }),
+      prisma.invoice.findMany({
+        where: {
+          status: "paid",
+          createdAt: { gte: thisMonth },
+        },
+        select: { amount: true },
+      }),
+    ]);
+
+    const totalRevenue = allPaidInvoices.reduce(
+      (acc, curr) => acc + Number(curr.amount) / 100,
+      0,
+    );
+
+    const estimatedMRR = monthInvoices.reduce(
+      (acc, curr) => acc + Number(curr.amount) / 100,
+      0,
+    );
+
+    // 2. Métricas de Usuários e Engajamento
+    const [totalActive, todayClicks, monthlyGrowth] = await Promise.all([
+      prisma.subscription.count({
+        where: { status: "active" },
+      }),
+      prisma.interaction.count({
+        where: { createdAt: { gte: today } },
+      }),
+      prisma.subscription.count({
+        where: {
+          createdAt: { gte: thirtyDaysAgo },
+          status: "active",
+        },
+      }),
+    ]);
+
+    // 3. Transações para a Tabela (Últimas Assinaturas)
     const recentTransactions = await prisma.subscription.findMany({
       take: 10,
-      orderBy: {
-        createdAt: "desc", // 👈 O segredo é estar AQUI, no nível da Subscription
-      },
+      orderBy: { createdAt: "desc" },
       include: {
         user: {
           select: {
             name: true,
             email: true,
-            // Se você incluir 'subscription' aqui dentro de novo,
-            // cria um loop desnecessário de dados.
           },
         },
       },
@@ -1704,13 +1732,17 @@ export const GetFinanceStats = async (req: Request, res: Response) => {
 
     return res.json({
       metrics: {
-        totalActive: activeSubscriptions,
-        monthlyGrowth: newSubscribers,
-        estimatedMRR: activeSubscriptions * 19.9, // Exemplo de valor do seu plano
+        // Mudei para summary para bater com seu componente FinanceiroPage
+        totalActive,
+        totalRevenue,
+        todayClicks,
+        monthlyGrowth,
+        estimatedMRR,
       },
       transactions: recentTransactions,
     });
   } catch (error) {
+    console.error("Erro Financeiro:", error);
     return res.status(500).json({ error: "Erro ao buscar dados financeiros." });
   }
 };
