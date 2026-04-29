@@ -230,25 +230,24 @@ export const signUp = async (req: Request, res: Response) => {
 // forgotPassword
 export const updateRecovery = async (req: Request, res: Response) => {
   try {
-    // Pegamos o ID do usuário (geralmente vem do middleware de auth ou do corpo)
-    const { userId } = req.body;
+    // 1. Corrigido: Extraímos as propriedades direto do body, não de dentro do userId
+    const { userId, recoveryQuestion, recoveryHash } = req.body;
 
-    if (!userId.recoveryQuestion || !userId.recoveryHash) {
-      return res
-        .status(400)
-        .json({ error: "Pergunta e Hash são obrigatórios." });
+    // 2. Validação Mínima: Só precisamos do ID para saber quem atualizar
+    if (!userId) {
+      return res.status(400).json({ error: "ID do usuário é obrigatório." });
     }
 
-    // Atualizamos apenas os campos de recuperação
+    // 3. Atualização Inteligente: Só atualiza se os campos existirem no body
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
-        recoveryQuestion: userId.recoveryQuestion,
-        recoveryHash: userId.recoveryHash,
+        // Se vier undefined, o Prisma ignora o campo e mantém o que está no banco
+        ...(recoveryQuestion && { recoveryQuestion }),
+        ...(recoveryHash && { recoveryHash }),
       },
     });
 
-    // Retornamos os dados atualizados para o Zustand atualizar o estado local
     return res.json({
       message: "Segurança atualizada com sucesso!",
       recoveryQuestion: updatedUser.recoveryQuestion,
@@ -256,9 +255,7 @@ export const updateRecovery = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error("❌ Erro ao atualizar recuperação:", error);
-    return res
-      .status(500)
-      .json({ error: "Erro ao salvar dados de recuperação." });
+    return res.status(500).json({ error: "Erro interno ao salvar dados." });
   }
 };
 
@@ -1395,7 +1392,7 @@ export const AlertsDynamic = async (req: Request, res: Response) => {
         title: "Cofre Vulnerável ⚠️",
         message:
           "Configure sua pergunta de recuperação para não perder o acesso.",
-        icon: "gpp-maybe",
+        icon: "🛡️",
         color: "#ef4444",
         action: "GO_TO_RECOVERY",
         actionLabel: "CONFIGURAR",
