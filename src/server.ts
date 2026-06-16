@@ -49,8 +49,37 @@ const app = express();
 
 app.use(
   cors({
-    origin: "http://localhost:3001",
-    allowedHeaders: ["Content-Type", "Authorization", "x-admin-key"],
+    origin: (origin, callback) => {
+      // Lista de origens permitidas
+      const allowedOrigins = [
+        "http://localhost:3000", // Porta do seu Admin atual de disparos/stats
+        "http://localhost:3001", // Porta antiga que você usava
+      ];
+
+      // Se a requisição não tiver origem (como o app mobile nativo ou Insomnia/Postman), libera
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+
+      // Se a origem estiver na lista ou se for um localhost dinâmico, libera
+      if (
+        allowedOrigins.includes(origin) ||
+        origin.startsWith("http://localhost:")
+      ) {
+        callback(null, true);
+      } else {
+        callback(new Error("Bloqueado pelo CORS do Passguard"));
+      }
+    },
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "x-admin-key",
+      "x-admin-token",
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    credentials: true,
   }),
 );
 
